@@ -104,18 +104,3 @@ python -m http.server 8000
 Paleta institucional morada (`#5C1F5C` / `#7A2A7A`) con azul complementario,
 tipografía IBM Plex y semáforo verde/ámbar/rojo. La guía de diseño es
 `Dashboard POI 2026.dc.html`.
-
----
-
-### Versión Streamlit (local, opcional)
-
-El proyecto conserva la app original de Streamlit (`Resume.py`, `pages/`,
-`utils/`) para uso local:
-
-```bash
-pip install -r requirements.txt
-streamlit run Resume.py
-```
-
-La versión publicada en la web es la **estática** descrita arriba; Streamlit no
-puede alojarse en GitHub Pages porque requiere un servidor Python.

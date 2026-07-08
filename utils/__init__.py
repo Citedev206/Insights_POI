@@ -1,1 +1,0 @@
-"""Utilidades del sistema POI."""
