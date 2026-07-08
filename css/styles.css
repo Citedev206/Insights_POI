@@ -384,13 +384,15 @@ select.pick:focus{ outline:none; border-color:var(--purple); }
 /* ============================================================
    CALENDARIO DE ATENCIÓN
    ============================================================ */
-.cal-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:16px; margin-top:6px; }
+.cal-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(230px, 1fr)); gap:16px;
+  margin-top:6px; align-items:start; }
 .cal-month{ border:1px solid var(--border); border-radius:12px; padding:12px 12px 14px; background:var(--surface); }
 .cal-month h4{ font-size:.82rem; font-weight:700; color:var(--ink); margin-bottom:8px; }
-.cal-week{ display:grid; grid-template-columns:repeat(7, 1fr); gap:4px; }
+.cal-week{ display:grid; grid-template-columns:repeat(7, 1fr); grid-auto-rows:30px; gap:4px; align-content:start; }
+.cal-week.dow{ grid-auto-rows:16px; }
 .cal-week + .cal-week{ margin-top:4px; }
-.cal-dow{ font-size:.6rem; color:var(--muted2); text-align:center; font-weight:600; }
-.cal-day{ aspect-ratio:1 / 1; display:grid; place-items:center; border-radius:6px; font-size:.72rem;
+.cal-dow{ font-size:.6rem; color:var(--muted2); text-align:center; font-weight:600; align-self:center; }
+.cal-day{ display:grid; place-items:center; border-radius:6px; font-size:.72rem;
   color:var(--muted); background:var(--track); font-variant-numeric:tabular-nums; }
 .cal-day.empty{ background:transparent; }
 .cal-day.on{ color:#fff; font-weight:600; }

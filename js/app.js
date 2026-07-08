@@ -599,7 +599,7 @@
     }
     return `<div class="cal-month">
       <h4>${esc(CFG.MESES_NOMBRE[mm.month] || mm.month)} ${mm.year}</h4>
-      <div class="cal-week">${dows.map((x) => `<div class="cal-dow">${x}</div>`).join("")}</div>
+      <div class="cal-week dow">${dows.map((x) => `<div class="cal-dow">${x}</div>`).join("")}</div>
       <div class="cal-week">${cells.join("")}</div>
     </div>`;
   }
