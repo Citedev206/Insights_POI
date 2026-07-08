@@ -126,7 +126,7 @@
         const meta = mMeta.get(metaKey(t, mes)) || 0;
         if (meta <= 0) return null;
         const ejec = mEjec.get(metaKey(t, mes)) || 0;
-        return pct(meta, ejec);
+        return { pct: pct(meta, ejec), meta, ejec };
       });
       const total = tareaMetaTotal.get(t) || 0;
       return { label: `${t} (${total.toLocaleString("es-PE")})`, cells };

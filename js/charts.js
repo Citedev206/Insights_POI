@@ -252,12 +252,19 @@
   // -------------------------------------------------------------------------
   function heatmap(hm) {
     if (!hm || !hm.rows.length) return empty("Sin metas por tarea para el periodo");
-    const cellColor = (v) => v == null ? "transparent" : semColor(v);
+    const cellColor = (v) => v == null ? "transparent" : semColor(typeof v === "object" ? v.pct : v);
     const head = `<div class="hm-row hm-head"><div class="hm-lab"></div>${hm.meses.map((m) => `<div class="hm-cell hm-mes">${esc(m)}</div>`).join("")}</div>`;
     const body = hm.rows.map((r) => `
       <div class="hm-row">
         <div class="hm-lab" title="${esc(r.label)}">${esc(r.label)}</div>
-        ${r.cells.map((v) => `<div class="hm-cell" style="background:${cellColor(v)}">${v == null ? "" : Math.round(v) + "%"}</div>`).join("")}
+        ${r.cells.map((v) => {
+      if (v == null) return `<div class="hm-cell" style="background:transparent"></div>`;
+      const cell = typeof v === "object" ? v : { pct: v, meta: null, ejec: null };
+      const bg = semColor(cell.pct);
+      const pctTxt = Math.round(cell.pct) + "%";
+      const detail = cell.meta != null ? `<span class="hm-detail">${fmt(cell.ejec)}/${fmt(cell.meta)}</span>` : "";
+      return `<div class="hm-cell" style="background:${bg}" title="${pctTxt}${cell.meta != null ? ` · Ejec ${fmt(cell.ejec)} / Prog ${fmt(cell.meta)}` : ""}"><span class="hm-pct">${pctTxt}</span>${detail}</div>`;
+    }).join("")}
       </div>`).join("");
     return `<div class="hm-scroll"><div class="heatmap" style="--hm-cols:${hm.meses.length}">${head}${body}</div></div>`;
   }

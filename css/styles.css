@@ -412,8 +412,10 @@ select.pick:focus{ outline:none; border-color:var(--purple); }
 .hm-row{ display:grid; grid-template-columns:220px repeat(var(--hm-cols,12), 1fr); gap:4px; align-items:center; }
 .hm-lab{ font-size:.76rem; color:var(--text); font-weight:500; white-space:nowrap;
   overflow:hidden; text-overflow:ellipsis; padding-right:6px; }
-.hm-cell{ height:30px; border-radius:5px; display:grid; place-items:center; color:#fff;
-  font-size:.72rem; font-weight:600; font-variant-numeric:tabular-nums; }
+.hm-cell{ height:42px; border-radius:5px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff;
+  font-size:.72rem; font-weight:600; font-variant-numeric:tabular-nums; gap:1px; }
+.hm-pct{ font-size:.72rem; font-weight:700; line-height:1.1; }
+.hm-detail{ font-size:.6rem; font-weight:500; opacity:.88; line-height:1.1; }
 .hm-head .hm-cell{ background:transparent !important; color:var(--muted); font-weight:600;
   text-transform:uppercase; font-size:.66rem; letter-spacing:.4px; height:auto; }
 .hm-mes{ height:auto; }
