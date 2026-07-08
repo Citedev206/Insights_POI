@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'IBM Plex Sans',system-ui,sans-serif;}
+</style>
+</helmet>
+<div style="display:flex;min-height:100vh;background:#F4F1F6;font-family:'IBM Plex Sans',system-ui,sans-serif;color:#28232E;">
+
+  <!-- NAV RAIL -->
+  <aside style="width:68px;flex:0 0 68px;background:#5C1F5C;display:flex;flex-direction:column;align-items:center;padding:18px 0;gap:6px;position:sticky;top:0;height:100vh;">
+    <div style="width:38px;height:38px;border-radius:11px;background:#fff;display:grid;place-items:center;font-weight:700;color:#5C1F5C;font-size:.82rem;letter-spacing:-.5px;margin-bottom:14px;">CT</div>
+    <div style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.16);color:#fff;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>
+    </div>
+    <div style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#D8B8D8;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>
+    </div>
+    <div style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#D8B8D8;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+    </div>
+    <div style="width:44px;height:44px;border-radius:12px;display:grid;place-items:center;color:#D8B8D8;">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </div>
+    <div style="margin-top:auto;width:36px;height:36px;border-radius:50%;background:#C0392B;display:grid;place-items:center;color:#fff;font-weight:600;font-size:.78rem;">JC</div>
+  </aside>
+
+  <!-- MAIN -->
+  <main style="flex:1;min-width:0;display:flex;flex-direction:column;">
+    <!-- HEADER -->
+    <header style="background:#fff;border-bottom:1px solid #ECE6F0;padding:14px 28px;display:flex;align-items:center;justify-content:space-between;gap:24px;position:sticky;top:0;z-index:20;">
+      <div style="display:flex;align-items:center;gap:18px;min-width:0;">
+        <div style="display:flex;flex-direction:column;gap:2px;min-width:0;">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <h1 style="font-size:1.18rem;font-weight:700;letter-spacing:-.3px;color:#28232E;white-space:nowrap;">Dashboard POI 2026</h1>
+            <span style="font-size:.7rem;font-weight:600;color:#5C1F5C;background:#F3E9F3;padding:3px 9px;border-radius:6px;letter-spacing:.2px;">CITE TEXTIL CAMÉLIDOS · CUSCO</span>
+          </div>
+          <p style="font-size:.78rem;color:#867E90;font-weight:400;">Plan Operativo Institucional · Seguimiento y monitoreo de metas</p>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:22px;flex:0 0 auto;">
+        <img src="assets/produce.png" alt="Ministerio de la Producción" style="height:34px;width:auto;object-fit:contain;">
+        <div style="width:1px;height:30px;background:#ECE6F0;"></div>
+        <img src="assets/itp.png" alt="ITP red CITE" style="height:38px;width:auto;object-fit:contain;">
+      </div>
+    </header>
+
+    <!-- FILTER BAR -->
+    <div style="background:#fff;border-bottom:1px solid #ECE6F0;padding:12px 28px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;position:sticky;top:65px;z-index:15;">
+      <span style="display:inline-flex;align-items:center;gap:7px;font-size:.72rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.5px;margin-right:2px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filtros
+      </span>
+      <div style="display:flex;align-items:center;gap:7px;background:#F7F4F9;border:1px solid #EAE3EE;border-radius:9px;padding:7px 12px;font-size:.82rem;font-weight:500;cursor:pointer;">
+        <span style="color:#867E90;font-size:.72rem;">Periodo</span>
+        <span style="color:#28232E;font-weight:600;">2026 · Anual</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#867E90" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;background:#F7F4F9;border:1px solid #EAE3EE;border-radius:9px;padding:7px 12px;font-size:.82rem;font-weight:500;cursor:pointer;">
+        <span style="color:#867E90;font-size:.72rem;">Trimestre</span>
+        <span style="color:#28232E;font-weight:600;">T1 – T2</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#867E90" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;background:#F7F4F9;border:1px solid #EAE3EE;border-radius:9px;padding:7px 12px;font-size:.82rem;font-weight:500;cursor:pointer;">
+        <span style="color:#867E90;font-size:.72rem;">Línea estratégica</span>
+        <span style="color:#28232E;font-weight:600;">Todas</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#867E90" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div style="display:flex;align-items:center;gap:7px;background:#F7F4F9;border:1px solid #EAE3EE;border-radius:9px;padding:7px 12px;font-size:.82rem;font-weight:500;cursor:pointer;">
+        <span style="color:#867E90;font-size:.72rem;">Estado</span>
+        <span style="color:#28232E;font-weight:600;">Todos</span>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#867E90" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </div>
+      <div style="flex:1;"></div>
+      <button style="display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid #EAE3EE;border-radius:9px;padding:7px 13px;font-size:.78rem;font-weight:600;color:#867E90;cursor:pointer;font-family:inherit;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+        Limpiar
+      </button>
+      <button style="display:inline-flex;align-items:center;gap:6px;background:#5C1F5C;border:none;border-radius:9px;padding:8px 15px;font-size:.78rem;font-weight:600;color:#fff;cursor:pointer;font-family:inherit;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Exportar
+      </button>
+    </div>
+
+    <!-- CONTENT -->
+    <div style="padding:24px 28px 40px;display:flex;flex-direction:column;gap:24px;">
+
+      <!-- KPI ROW -->
+      <section style="display:grid;grid-template-columns:repeat(5,1fr);gap:16px;">
+
+        <!-- KPI 1 -->
+        <div style="background:#fff;border:1px solid #ECE6F0;border-radius:16px;padding:18px 18px 16px;box-shadow:0 1px 2px rgba(40,35,46,.04);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <span style="font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.6px;">Avance global POI</span>
+            <div style="width:30px;height:30px;border-radius:9px;background:#F3E9F3;display:grid;place-items:center;color:#5C1F5C;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12A10 10 0 1 1 12 2"/><path d="M22 2 12 12"/><path d="M16 2h6v6"/></svg>
+            </div>
+          </div>
+          <div style="font-size:1.9rem;font-weight:700;color:#28232E;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1;">68.4<span style="font-size:1.1rem;color:#867E90;">%</span></div>
+          <div style="height:7px;border-radius:99px;background:#F0ECF3;margin:12px 0 8px;overflow:hidden;"><div style="width:68.4%;height:100%;background:#7A2A7A;border-radius:99px;"></div></div>
+          <div style="display:flex;align-items:center;gap:7px;"><span style="display:inline-flex;align-items:center;gap:2px;font-size:.72rem;font-weight:600;color:#1F9D6B;background:#E4F4EC;padding:1px 7px;border-radius:99px;">▲ 5.2 pts</span><span style="font-size:.72rem;color:#867E90;">vs. T1</span></div>
+        </div>
+
+        <!-- KPI 2 -->
+        <div style="background:#fff;border:1px solid #ECE6F0;border-radius:16px;padding:18px 18px 16px;box-shadow:0 1px 2px rgba(40,35,46,.04);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <span style="font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.6px;">Ejecución presupuestal</span>
+            <div style="width:30px;height:30px;border-radius:9px;background:#F3E9F3;display:grid;place-items:center;color:#5C1F5C;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+            </div>
+          </div>
+          <div style="font-size:1.9rem;font-weight:700;color:#28232E;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1;">69.3<span style="font-size:1.1rem;color:#867E90;">%</span></div>
+          <div style="height:7px;border-radius:99px;background:#F0ECF3;margin:12px 0 8px;overflow:hidden;"><div style="width:69.3%;height:100%;background:#7A2A7A;border-radius:99px;"></div></div>
+          <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:.74rem;color:#867E90;font-variant-numeric:tabular-nums;">S/ 2.84M <span style="color:#C8C2CE;">/</span> 4.10M</span></div>
+        </div>
+
+        <!-- KPI 3 -->
+        <div style="background:#fff;border:1px solid #ECE6F0;border-radius:16px;padding:18px 18px 16px;box-shadow:0 1px 2px rgba(40,35,46,.04);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <span style="font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.6px;">Servicios tecnológicos</span>
+            <div style="width:30px;height:30px;border-radius:9px;background:#EAF1FB;display:grid;place-items:center;color:#2E5FD4;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+            </div>
+          </div>
+          <div style="font-size:1.9rem;font-weight:700;color:#28232E;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1;">1,247</div>
+          <div style="font-size:.74rem;color:#867E90;margin:12px 0 8px;">Meta anual: <span style="font-weight:600;color:#28232E;">1,820</span></div>
+          <div style="display:flex;align-items:center;gap:7px;"><span style="display:inline-flex;align-items:center;gap:2px;font-size:.72rem;font-weight:600;color:#1F9D6B;background:#E4F4EC;padding:1px 7px;border-radius:99px;">▲ 12%</span><span style="font-size:.72rem;color:#867E90;">vs. T1</span></div>
+        </div>
+
+        <!-- KPI 4 -->
+        <div style="background:#fff;border:1px solid #ECE6F0;border-radius:16px;padding:18px 18px 16px;box-shadow:0 1px 2px rgba(40,35,46,.04);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <span style="font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.6px;">Productores atendidos</span>
+            <div style="width:30px;height:30px;border-radius:9px;background:#EAF1FB;display:grid;place-items:center;color:#2E5FD4;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            </div>
+          </div>
+          <div style="font-size:1.9rem;font-weight:700;color:#28232E;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1;">3,560</div>
+          <div style="font-size:.74rem;color:#867E90;margin:12px 0 8px;">Mujeres: <span style="font-weight:600;color:#28232E;">62%</span> · Comunidades: <span style="font-weight:600;color:#28232E;">28</span></div>
+          <div style="display:flex;align-items:center;gap:7px;"><span style="display:inline-flex;align-items:center;gap:2px;font-size:.72rem;font-weight:600;color:#1F9D6B;background:#E4F4EC;padding:1px 7px;border-radius:99px;">▲ 8%</span><span style="font-size:.72rem;color:#867E90;">vs. T1</span></div>
+        </div>
+
+        <!-- KPI 5 -->
+        <div style="background:#fff;border:1px solid #ECE6F0;border-radius:16px;padding:18px 18px 16px;box-shadow:0 1px 2px rgba(40,35,46,.04);">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+            <span style="font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.6px;">Metas en riesgo</span>
+            <div style="width:30px;height:30px;border-radius:9px;background:#FBE9EA;display:grid;place-items:center;color:#C0392B;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            </div>
+          </div>
+          <div style="font-size:1.9rem;font-weight:700;color:#C0392B;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1;">5</div>
+          <div style="font-size:.74rem;color:#867E90;margin:12px 0 8px;">de <span style="font-weight:600;color:#28232E;">42</span> metas físicas</div>
+          <div style="display:flex;align-items:center;gap:7px;"><span style="display:inline-flex;align-items:center;gap:2px;font-size:.72rem;font-weight:600;color:#C0392B;background:#FBE9EA;padding:1px 7px;border-radius:99px;">▼ Atención</span></div>
+        </div>
+
+      </section>
+
+      <!-- CHARTS ROW -->
+      <section style="display:grid;grid-template-columns:1.5fr 1.5fr 1fr;gap:16px;align-items:stretch;">
+
+        <!-- Trend chart -->
+        <div style="background:#fff;border:1px solid #ECE6F0;border-radius:16px;padding:18px 20px 12px;box-shadow:0 1px 2px rgba(40,35,46,.04);display:flex;flex-direction:column;">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:6px;">
+            <div>
+              <h3 style="font-size:.92rem;font-weight:700;color:#28232E;">Avance físico vs. programado</h3>
+              <p style="font-size:.74rem;color:#867E90;margin-top:2px;">Acumulado mensual 2026 (%)</p>
+            </div>
+            <div style="display:flex;gap:14px;">
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:.72rem;color:#5C5562;"><i style="width:18px;height:3px;border-radius:2px;background:#7A2A7A;display:inline-block;"></i>Ejecutado</span>
+              <span style="display:inline-flex;align-items:center;gap:6px;font-size:.72rem;color:#5C5562;"><i style="width:18px;height:0;border-top:2px dashed #B79BB7;display:inline-block;"></i>Programado</span>
+            </div>
+          </div>
+          <div style="flex:1;min-height:180px;position:relative;">
+            <svg viewBox="0 0 520 200" preserveAspectRatio="none" style="width:100%;height:200px;display:block;">
+              <defs><linearGradient id="g1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#7A2A7A" stop-opacity="0.22"/><stop offset="100%" stop-color="#7A2A7A" stop-opacity="0"/></linearGradient></defs>
+              <line x1="0" y1="40" x2="520" y2="40" stroke="#F0ECF3" stroke-width="1"/>
+              <line x1="0" y1="90" x2="520" y2="90" stroke="#F0ECF3" stroke-width="1"/>
+              <line x1="0" y1="140" x2="520" y2="140" stroke="#F0ECF3" stroke-width="1"/>
+              <line x1="0" y1="190" x2="520" y2="190" stroke="#E8E2EC" stroke-width="1"/>
+              <path d="M0,168 L47,158 L95,150 L142,132 L189,124 L236,108 L284,96 L331,84 L378,70 L425,66 L473,54 L520,44" fill="none" stroke="#B79BB7" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>
+              <path d="M0,176 L47,170 L95,158 L142,150 L189,138 L236,128 L284,112 L331,104 L378,92 L425,84 L473,76 L520,66 L520,200 L0,200 Z" fill="url(#g1)"/>
+              <path d="M0,176 L47,170 L95,158 L142,150 L189,138 L236,128 L284,112 L331,104 L378,92 L425,84 L473,76 L520,66" fill="none" stroke="#7A2A7A" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="520" cy="66" r="4" fill="#7A2A7A"/><circle cx="520" cy="66" r="7" fill="#7A2A7A" opacity="0.18"/>
+            </svg>
+            <div style="display:flex;justify-content:space-between;font-size:.66rem;color:#A39CAB;font-family:'IBM Plex Mono',monospace;margin-top:4px;padding:0 2px;">
+              <span>Ene</span><span>Mar</span><span>May</span><span>Jul</span><span>Set</span><span>Nov</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ejecución por línea -->
+        <div style="background:#fff;border:1px solid #ECE6F0;border-radius:16px;padding:18px 20px;box-shadow:0 1px 2px rgba(40,35,46,.04);display:flex;flex-direction:column;">
+          <h3 style="font-size:.92rem;font-weight:700;color:#28232E;">Avance por línea estratégica</h3>
+          <p style="font-size:.74rem;color:#867E90;margin-top:2px;margin-bottom:16px;">% de cumplimiento de metas físicas</p>
+          <div style="display:flex;flex-direction:column;gap:15px;flex:1;justify-content:center;">
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:5px;"><span style="color:#3D3645;font-weight:500;">Servicios tecnológicos</span><span style="font-weight:700;color:#28232E;font-variant-numeric:tabular-nums;">82%</span></div>
+              <div style="height:9px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:82%;height:100%;background:#7A2A7A;border-radius:99px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:5px;"><span style="color:#3D3645;font-weight:500;">Capacitación y formación</span><span style="font-weight:700;color:#28232E;font-variant-numeric:tabular-nums;">74%</span></div>
+              <div style="height:9px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:74%;height:100%;background:#7A2A7A;border-radius:99px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:5px;"><span style="color:#3D3645;font-weight:500;">Asistencia técnica</span><span style="font-weight:700;color:#28232E;font-variant-numeric:tabular-nums;">66%</span></div>
+              <div style="height:9px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:66%;height:100%;background:#9B4D9B;border-radius:99px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:5px;"><span style="color:#3D3645;font-weight:500;">I+D+i y transferencia</span><span style="font-weight:700;color:#28232E;font-variant-numeric:tabular-nums;">58%</span></div>
+              <div style="height:9px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:58%;height:100%;background:#9B4D9B;border-radius:99px;"></div></div>
+            </div>
+            <div>
+              <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:5px;"><span style="color:#3D3645;font-weight:500;">Articulación comercial</span><span style="font-weight:700;color:#C0392B;font-variant-numeric:tabular-nums;">41%</span></div>
+              <div style="height:9px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:41%;height:100%;background:#C0392B;border-radius:99px;"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Distribución por estado (donut + semáforo) -->
+        <div style="background:#fff;border:1px solid #ECE6F0;border-radius:16px;padding:18px 20px;box-shadow:0 1px 2px rgba(40,35,46,.04);display:flex;flex-direction:column;">
+          <h3 style="font-size:.92rem;font-weight:700;color:#28232E;">Estado de metas</h3>
+          <p style="font-size:.74rem;color:#867E90;margin-top:2px;margin-bottom:8px;">Semáforo de cumplimiento</p>
+          <div style="display:flex;align-items:center;justify-content:center;position:relative;margin:6px 0 14px;">
+            <svg width="140" height="140" viewBox="0 0 42 42">
+              <circle cx="21" cy="21" r="15.915" fill="none" stroke="#F0ECF3" stroke-width="5.5"/>
+              <circle cx="21" cy="21" r="15.915" fill="none" stroke="#1F9D6B" stroke-width="5.5" stroke-dasharray="62 38" stroke-dashoffset="25" stroke-linecap="round"/>
+              <circle cx="21" cy="21" r="15.915" fill="none" stroke="#E0A82E" stroke-width="5.5" stroke-dasharray="26 74" stroke-dashoffset="-37" stroke-linecap="round"/>
+              <circle cx="21" cy="21" r="15.915" fill="none" stroke="#C0392B" stroke-width="5.5" stroke-dasharray="12 88" stroke-dashoffset="-63" stroke-linecap="round"/>
+            </svg>
+            <div style="position:absolute;text-align:center;"><div style="font-size:1.5rem;font-weight:700;color:#28232E;line-height:1;font-variant-numeric:tabular-nums;">42</div><div style="font-size:.64rem;color:#867E90;text-transform:uppercase;letter-spacing:.5px;margin-top:2px;">metas</div></div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:9px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;font-size:.78rem;"><span style="display:inline-flex;align-items:center;gap:8px;color:#3D3645;"><i style="width:9px;height:9px;border-radius:3px;background:#1F9D6B;"></i>En meta</span><span style="font-weight:700;color:#28232E;">26</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;font-size:.78rem;"><span style="display:inline-flex;align-items:center;gap:8px;color:#3D3645;"><i style="width:9px;height:9px;border-radius:3px;background:#E0A82E;"></i>En proceso</span><span style="font-weight:700;color:#28232E;">11</span></div>
+            <div style="display:flex;align-items:center;justify-content:space-between;font-size:.78rem;"><span style="display:inline-flex;align-items:center;gap:8px;color:#3D3645;"><i style="width:9px;height:9px;border-radius:3px;background:#C0392B;"></i>En riesgo</span><span style="font-weight:700;color:#28232E;">5</span></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- TABLE -->
+      <section style="background:#fff;border:1px solid #ECE6F0;border-radius:16px;box-shadow:0 1px 2px rgba(40,35,46,.04);overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #F0ECF3;">
+          <div>
+            <h3 style="font-size:.92rem;font-weight:700;color:#28232E;">Detalle de metas físicas</h3>
+            <p style="font-size:.74rem;color:#867E90;margin-top:2px;">42 actividades operativas · ordenadas por nivel de avance</p>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="display:flex;align-items:center;gap:7px;background:#F7F4F9;border:1px solid #EAE3EE;border-radius:8px;padding:6px 11px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#A39CAB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <span style="font-size:.76rem;color:#A39CAB;">Buscar meta…</span>
+            </div>
+          </div>
+        </div>
+        <table style="width:100%;border-collapse:collapse;font-size:.8rem;">
+          <thead>
+            <tr style="background:#FBFAFC;">
+              <th style="text-align:left;padding:11px 20px;font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.5px;">Meta operativa</th>
+              <th style="text-align:left;padding:11px 14px;font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.5px;">Línea</th>
+              <th style="text-align:right;padding:11px 14px;font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.5px;">Programado</th>
+              <th style="text-align:right;padding:11px 14px;font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.5px;">Ejecutado</th>
+              <th style="text-align:left;padding:11px 14px;font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.5px;width:150px;">Avance</th>
+              <th style="text-align:center;padding:11px 20px;font-size:.68rem;font-weight:600;color:#867E90;text-transform:uppercase;letter-spacing:.5px;">Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-top:1px solid #F4F1F6;">
+              <td style="padding:13px 20px;color:#28232E;font-weight:500;">Ensayos de laboratorio textil</td>
+              <td style="padding:13px 14px;color:#5C5562;">Servicios tecnológicos</td>
+              <td style="padding:13px 14px;text-align:right;color:#5C5562;font-variant-numeric:tabular-nums;">320</td>
+              <td style="padding:13px 14px;text-align:right;color:#28232E;font-weight:600;font-variant-numeric:tabular-nums;">301</td>
+              <td style="padding:13px 14px;"><div style="display:flex;align-items:center;gap:9px;"><div style="flex:1;height:7px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:94%;height:100%;background:#1F9D6B;border-radius:99px;"></div></div><span style="font-weight:700;color:#28232E;font-variant-numeric:tabular-nums;width:34px;">94%</span></div></td>
+              <td style="padding:13px 20px;text-align:center;"><span style="display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:600;color:#1F9D6B;background:#E4F4EC;padding:3px 10px;border-radius:99px;"><i style="width:6px;height:6px;border-radius:99px;background:#1F9D6B;"></i>En meta</span></td>
+            </tr>
+            <tr style="border-top:1px solid #F4F1F6;">
+              <td style="padding:13px 20px;color:#28232E;font-weight:500;">Capacitación en hilandería fina</td>
+              <td style="padding:13px 14px;color:#5C5562;">Capacitación y formación</td>
+              <td style="padding:13px 14px;text-align:right;color:#5C5562;font-variant-numeric:tabular-nums;">24</td>
+              <td style="padding:13px 14px;text-align:right;color:#28232E;font-weight:600;font-variant-numeric:tabular-nums;">19</td>
+              <td style="padding:13px 14px;"><div style="display:flex;align-items:center;gap:9px;"><div style="flex:1;height:7px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:79%;height:100%;background:#1F9D6B;border-radius:99px;"></div></div><span style="font-weight:700;color:#28232E;font-variant-numeric:tabular-nums;width:34px;">79%</span></div></td>
+              <td style="padding:13px 20px;text-align:center;"><span style="display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:600;color:#1F9D6B;background:#E4F4EC;padding:3px 10px;border-radius:99px;"><i style="width:6px;height:6px;border-radius:99px;background:#1F9D6B;"></i>En meta</span></td>
+            </tr>
+            <tr style="border-top:1px solid #F4F1F6;">
+              <td style="padding:13px 20px;color:#28232E;font-weight:500;">Asistencia técnica a productores</td>
+              <td style="padding:13px 14px;color:#5C5562;">Asistencia técnica</td>
+              <td style="padding:13px 14px;text-align:right;color:#5C5562;font-variant-numeric:tabular-nums;">1,400</td>
+              <td style="padding:13px 14px;text-align:right;color:#28232E;font-weight:600;font-variant-numeric:tabular-nums;">932</td>
+              <td style="padding:13px 14px;"><div style="display:flex;align-items:center;gap:9px;"><div style="flex:1;height:7px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:67%;height:100%;background:#E0A82E;border-radius:99px;"></div></div><span style="font-weight:700;color:#28232E;font-variant-numeric:tabular-nums;width:34px;">67%</span></div></td>
+              <td style="padding:13px 20px;text-align:center;"><span style="display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:600;color:#B07D14;background:#FCF3DB;padding:3px 10px;border-radius:99px;"><i style="width:6px;height:6px;border-radius:99px;background:#E0A82E;"></i>En proceso</span></td>
+            </tr>
+            <tr style="border-top:1px solid #F4F1F6;">
+              <td style="padding:13px 20px;color:#28232E;font-weight:500;">Diseño de colección de fibra de alpaca</td>
+              <td style="padding:13px 14px;color:#5C5562;">I+D+i y transferencia</td>
+              <td style="padding:13px 14px;text-align:right;color:#5C5562;font-variant-numeric:tabular-nums;">6</td>
+              <td style="padding:13px 14px;text-align:right;color:#28232E;font-weight:600;font-variant-numeric:tabular-nums;">3</td>
+              <td style="padding:13px 14px;"><div style="display:flex;align-items:center;gap:9px;"><div style="flex:1;height:7px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:50%;height:100%;background:#E0A82E;border-radius:99px;"></div></div><span style="font-weight:700;color:#28232E;font-variant-numeric:tabular-nums;width:34px;">50%</span></div></td>
+              <td style="padding:13px 20px;text-align:center;"><span style="display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:600;color:#B07D14;background:#FCF3DB;padding:3px 10px;border-radius:99px;"><i style="width:6px;height:6px;border-radius:99px;background:#E0A82E;"></i>En proceso</span></td>
+            </tr>
+            <tr style="border-top:1px solid #F4F1F6;">
+              <td style="padding:13px 20px;color:#28232E;font-weight:500;">Ferias y ruedas de negocio</td>
+              <td style="padding:13px 14px;color:#5C5562;">Articulación comercial</td>
+              <td style="padding:13px 14px;text-align:right;color:#5C5562;font-variant-numeric:tabular-nums;">8</td>
+              <td style="padding:13px 14px;text-align:right;color:#28232E;font-weight:600;font-variant-numeric:tabular-nums;">3</td>
+              <td style="padding:13px 14px;"><div style="display:flex;align-items:center;gap:9px;"><div style="flex:1;height:7px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:38%;height:100%;background:#C0392B;border-radius:99px;"></div></div><span style="font-weight:700;color:#28232E;font-variant-numeric:tabular-nums;width:34px;">38%</span></div></td>
+              <td style="padding:13px 20px;text-align:center;"><span style="display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:600;color:#C0392B;background:#FBE9EA;padding:3px 10px;border-radius:99px;"><i style="width:6px;height:6px;border-radius:99px;background:#C0392B;"></i>En riesgo</span></td>
+            </tr>
+            <tr style="border-top:1px solid #F4F1F6;">
+              <td style="padding:13px 20px;color:#28232E;font-weight:500;">Certificación de calidad de fibra</td>
+              <td style="padding:13px 14px;color:#5C5562;">Servicios tecnológicos</td>
+              <td style="padding:13px 14px;text-align:right;color:#5C5562;font-variant-numeric:tabular-nums;">12</td>
+              <td style="padding:13px 14px;text-align:right;color:#28232E;font-weight:600;font-variant-numeric:tabular-nums;">4</td>
+              <td style="padding:13px 14px;"><div style="display:flex;align-items:center;gap:9px;"><div style="flex:1;height:7px;border-radius:99px;background:#F0ECF3;overflow:hidden;"><div style="width:33%;height:100%;background:#C0392B;border-radius:99px;"></div></div><span style="font-weight:700;color:#28232E;font-variant-numeric:tabular-nums;width:34px;">33%</span></div></td>
+              <td style="padding:13px 20px;text-align:center;"><span style="display:inline-flex;align-items:center;gap:5px;font-size:.72rem;font-weight:600;color:#C0392B;background:#FBE9EA;padding:3px 10px;border-radius:99px;"><i style="width:6px;height:6px;border-radius:99px;background:#C0392B;"></i>En riesgo</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:13px 20px;border-top:1px solid #F0ECF3;background:#FBFAFC;">
+          <span style="font-size:.74rem;color:#867E90;">Mostrando 6 de 42 metas</span>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button style="width:28px;height:28px;border-radius:7px;border:1px solid #EAE3EE;background:#fff;color:#A39CAB;cursor:pointer;font-family:inherit;">‹</button>
+            <button style="width:28px;height:28px;border-radius:7px;border:none;background:#5C1F5C;color:#fff;cursor:pointer;font-family:inherit;font-weight:600;font-size:.78rem;">1</button>
+            <button style="width:28px;height:28px;border-radius:7px;border:1px solid #EAE3EE;background:#fff;color:#5C5562;cursor:pointer;font-family:inherit;font-size:.78rem;">2</button>
+            <button style="width:28px;height:28px;border-radius:7px;border:1px solid #EAE3EE;background:#fff;color:#5C5562;cursor:pointer;font-family:inherit;font-size:.78rem;">3</button>
+            <button style="width:28px;height:28px;border-radius:7px;border:1px solid #EAE3EE;background:#fff;color:#5C5562;cursor:pointer;font-family:inherit;">›</button>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</x-dc>
+</body>
+</html>

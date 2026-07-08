@@ -1,0 +1,12 @@
+# Python (app Streamlit local)
+__pycache__/
+*.py[cod]
+
+# SO / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# IMPORTANTE: los Excel de data/ SÍ deben publicarse en GitHub Pages.
+# No añadir *.xlsx a este archivo.
