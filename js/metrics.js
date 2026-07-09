@@ -58,8 +58,10 @@
     const dims = new Set([...m.keys(), ...e.keys()]);
     let out = [];
     for (const d of dims) {
-      if (d === null || d === undefined || d === "") continue;
-      const meta = m.get(d) || 0, ejec = e.get(d) || 0, c = pct(meta, ejec);
+      if (d === null || d === undefined || String(d).trim() === "") continue;
+      const meta = m.get(d) || 0, ejec = e.get(d) || 0;
+      if (meta === 0 && ejec === 0) continue;   // omite filas vacías (0/0)
+      const c = pct(meta, ejec);
       out.push({ Dim: d, Meta: meta, Ejecutado: ejec, Cumplimiento: c,
                  Brecha: Math.max(meta - ejec, 0), Semaforo: semaforo(c) });
     }
@@ -81,7 +83,13 @@
   function rankingEspecialistas(eje, met) {
     const df = metaVsEjec(eje, met, X.ESPECIALISTA, M.ESPECIALISTA);
     const cli = uniqueCountBy(eje, X.ESPECIALISTA, X.RUC);
-    df.forEach((r) => { r.Clientes = cli.get(r.Dim) || 0; });
+    const cliFoc = uniqueCountBy(eje.filter((r) => r.ES_FOCALIZADO), X.ESPECIALISTA, X.RUC);
+    const cliNoFoc = uniqueCountBy(eje.filter((r) => !r.ES_FOCALIZADO), X.ESPECIALISTA, X.RUC);
+    df.forEach((r) => {
+      r.Clientes = cli.get(r.Dim) || 0;
+      r.ClientesFoc = cliFoc.get(r.Dim) || 0;
+      r.ClientesNoFoc = cliNoFoc.get(r.Dim) || 0;
+    });
     df.sort((a, b) => b.Ejecutado - a.Ejecutado);
     return df;
   }
@@ -236,6 +244,51 @@
     };
   }
 
+  // Meta de clientes atendidos POR ESPECIALISTA.
+  // - Cada cliente (RUC) se atribuye al especialista que lo atendió PRIMERO (por
+  //   fecha) — cuenta una sola vez y para ese especialista.
+  // - La meta total (focalizados / no focalizados) se reparte por igual entre
+  //   los especialistas que tienen metas programadas (Nesp).
+  function clientesMetaEspecialistas(eje, espsConMeta, metaFocTotal, metaNoFocTotal) {
+    const firstByRuc = new Map(); // ruc -> {esp, t, foc}
+    for (const r of eje) {
+      const ruc = r[X.RUC];
+      if (ruc == null || ruc === "") continue;
+      const f = r[X.FECHA];
+      const t = (f instanceof Date && !isNaN(f)) ? f.getTime()
+        : ((Number(r[X.ANIO]) || 0) * 10000 + (Number(r[X.MES]) || 0) * 100);
+      const prev = firstByRuc.get(ruc);
+      if (!prev || t < prev.t) firstByRuc.set(ruc, { esp: r[X.ESPECIALISTA], t, foc: !!r.ES_FOCALIZADO });
+    }
+    const tally = new Map(); // esp -> {foc, nofoc}
+    for (const { esp, foc } of firstByRuc.values()) {
+      if (esp == null || esp === "") continue;
+      if (!tally.has(esp)) tally.set(esp, { foc: 0, nofoc: 0 });
+      const o = tally.get(esp); if (foc) o.foc++; else o.nofoc++;
+    }
+    const espsMeta = espsConMeta instanceof Set ? espsConMeta : new Set(espsConMeta || []);
+    const Nesp = Math.max(espsMeta.size, 1);
+    const targetFoc = metaFocTotal / Nesp;
+    const targetNoFoc = metaNoFocTotal / Nesp;
+    const allEsps = new Set([...tally.keys(), ...espsMeta]);
+    const rows = [];
+    for (const esp of allEsps) {
+      if (esp == null || esp === "") continue;
+      const o = tally.get(esp) || { foc: 0, nofoc: 0 };
+      const tiene = espsMeta.has(esp);
+      rows.push({
+        esp, foc: o.foc, nofoc: o.nofoc, total: o.foc + o.nofoc,
+        tieneMeta: tiene,
+        metaFoc: tiene ? targetFoc : 0,
+        metaNoFoc: tiene ? targetNoFoc : 0,
+        pctFoc: tiene ? pct(targetFoc, o.foc) : 0,
+        pctNoFoc: tiene ? pct(targetNoFoc, o.nofoc) : 0,
+      });
+    }
+    rows.sort((a, b) => b.total - a.total);
+    return { rows, Nesp, targetFoc, targetNoFoc };
+  }
+
   function clientesMetaPorMes(metCli) {
     const byMes = new Map();
     for (const r of metCli) {
@@ -256,6 +309,7 @@
     pct, kpis, metaVsEjec, tendenciaMensual, rankingEspecialistas,
     complejidadResumen, heatmapCumplimiento, clientesResumen,
     clientesNuevosPorMes, kpisClientes, clientesMetaPorMes,
+    clientesMetaEspecialistas,
     sumBy, uniqueCountBy, nunique, sumCol,
   };
 })(window);

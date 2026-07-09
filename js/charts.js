@@ -54,6 +54,12 @@
       `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(r.Ejecutado).toFixed(1)}" r="3" fill="${COL.accent}">
          <title>${esc(r.Mes)} · Ejecutado ${fmt(r.Ejecutado)} / Meta ${fmt(r.Meta)}</title></circle>`).join("");
 
+    // Etiquetas de valor (ejecutado) sobre cada punto
+    const nums = rows.map((r, i) => {
+      const y = Math.max(yAt(r.Ejecutado) - 8, 10);
+      return `<text x="${xAt(i).toFixed(1)}" y="${y.toFixed(1)}" text-anchor="middle" font-size="11.5" font-weight="700" fill="${COL.ink}">${fmt(r.Ejecutado)}</text>`;
+    }).join("");
+
     const svg = `
     <svg viewBox="0 0 ${W} ${H}">
       <defs><linearGradient id="grad-trend" x1="0" y1="0" x2="0" y2="1">
@@ -64,6 +70,7 @@
       <path d="${lineM}" fill="none" stroke="${COL.soft}" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>
       <path d="${lineE}" fill="none" stroke="${COL.accent}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
       ${dots}
+      ${nums}
     </svg>
     <div class="chart-x">${rows.map((r) => `<span>${esc(r.Mes)}</span>`).join("")}</div>`;
     return svg;
@@ -145,20 +152,23 @@
     const colA = opts.colA || COL.accent, colB = opts.colB || COL.soft;
     const stacked = !!opts.stacked;
     const maxV = Math.max(1, ...rows.map((r) => stacked ? (r.a + r.b) : Math.max(r.a, r.b)));
+    // Con muchas columnas, las etiquetas de valor se ocultan (quedan en el hover)
+    const caps = rows.length <= (opts.capLimit || 8);
+    const cap = (v) => caps ? `<b class="vcap">${fmt(v)}</b>` : "";
     const cols = rows.map((r) => {
       const hA = (r.a / maxV) * 100, hB = (r.b / maxV) * 100;
       let bars;
       if (stacked) {
         const tot = r.a + r.b;
         bars = `<div class="vstack" title="${esc(r.label)} · ${esc(opts.nameA || "A")} ${fmt(r.a)} · ${esc(opts.nameB || "B")} ${fmt(r.b)}">
-          <b class="vcap">${fmt(tot)}</b>
+          ${cap(tot)}
           <span class="vseg" style="height:${hA.toFixed(1)}%;background:${colA}"></span>
           <span class="vseg" style="height:${hB.toFixed(1)}%;background:${colB}"></span>
         </div>`;
       } else {
         bars = `<div class="vpair">
-          <span class="vbar" style="height:${hB.toFixed(1)}%;background:${colB}" title="${esc(opts.nameB || "Meta")} ${fmt(r.b)}"><b class="vcap">${fmt(r.b)}</b></span>
-          <span class="vbar" style="height:${hA.toFixed(1)}%;background:${colA}" title="${esc(opts.nameA || "Ejecutado")} ${fmt(r.a)}"><b class="vcap">${fmt(r.a)}</b></span>
+          <span class="vbar" style="height:${hB.toFixed(1)}%;background:${colB}" title="${esc(opts.nameB || "Meta")} ${fmt(r.b)}">${cap(r.b)}</span>
+          <span class="vbar" style="height:${hA.toFixed(1)}%;background:${colA}" title="${esc(opts.nameA || "Ejecutado")} ${fmt(r.a)}">${cap(r.a)}</span>
         </div>`;
       }
       return `<div class="vcol">${bars}<span class="vx">${esc(r.label)}</span></div>`;
@@ -185,10 +195,10 @@
     let body = grid;
     series.forEach((s) => {
       const pts = s.values.map((v, i) => `${xAt(i).toFixed(1)},${yAt(v.value).toFixed(1)}`);
-      body += `<path d="M${pts.join(" L")}" fill="none" stroke="${s.color}" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"${s.dash ? ' stroke-dasharray="5 4"' : ""}/>`;
-      body += s.values.map((v, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v.value).toFixed(1)}" r="2.6" fill="${s.color}"><title>${esc(s.name)} · ${esc(v.label)}: ${fmt(v.value)}</title></circle>`).join("");
+      body += `<path d="M${pts.join(" L")}" fill="none" stroke="${s.color}" stroke-width="1.6" vector-effect="non-scaling-stroke" stroke-linecap="round" stroke-linejoin="round"${s.dash ? ' stroke-dasharray="5 4"' : ""}/>`;
+      body += s.values.map((v, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(v.value).toFixed(1)}" r="2" fill="${s.color}"><title>${esc(s.name)} · ${esc(v.label)}: ${fmt(v.value)}</title></circle>`).join("");
     });
-    return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${body}</svg>
+    return `<svg class="ml-svg" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${body}</svg>
       <div class="chart-x">${labels.map((l) => `<span>${esc(l)}</span>`).join("")}</div>`;
   }
 

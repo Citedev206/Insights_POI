@@ -11,12 +11,16 @@
   const CFG = {
     ANIO_ACTUAL: 2026,
     ANIOS_SIN_SERVICIO: 3,
+    // Programa institucional principal: la meta de clientes se muestra por
+    // defecto para este programa (CdD-FEST u otros solo al filtrarlos).
+    PROGRAMA_PRINCIPAL: "POI",
     FILES: {
       ejecucion:   "data/ejecucion.xlsx",
       metas:       "data/metas.xlsx",
       focalizados: "data/focalizados.xlsx",
       clientes:    "data/clientes.xlsx",
       bd:          "data/bd.xlsx",
+      programado:  "data/programado.xlsx",
     },
     // Ejecución
     X: {
@@ -184,6 +188,7 @@
     let cli = await readSheetOptional(CFG.FILES.clientes);
     cli = (cli || []).map((r) => ({
       MES: toInt(r.MES),
+      PROGRAMA: r.PROGRAMA != null ? String(r.PROGRAMA).trim() : null,
       TIPO: String(r.TIPO == null ? "" : r.TIPO).trim().toUpperCase(),
       META: toNum(r.META),
     }));
@@ -198,6 +203,34 @@
           ANIO: toInt(r.AÑO != null ? r.AÑO : (r.ANIO != null ? r.ANIO : r[keys[0]])),
           RUC: normRuc(r.RUC != null ? r.RUC : r[keys[1]]),
           RAZON_SOCIAL: r.RAZON_SOCIAL != null ? r.RAZON_SOCIAL : r[keys[2]],
+        };
+      });
+    }
+
+    // Programado (opcional): fechas programadas de intervención (CdD-FEST /
+    // WORLD-VISION). Columnas: ID_META, AÑO, MES, FECHA_PROGRAMADA, PROGRAMA,
+    // ESPECIALISTA, TIPO_SERVICIO, COMPLEJIDAD, TIPO_TAREA, META_CANTIDAD,
+    // META_FOCALIZADOS, PUNTO_INTERVENCIÓN.
+    let progRows = await readSheetOptional(CFG.FILES.programado);
+    let programado = [];
+    if (progRows) {
+      programado = progRows.map((r) => {
+        const f = parseFecha(r.FECHA_PROGRAMADA);
+        const punto = r["PUNTO_INTERVENCIÓN"] != null ? r["PUNTO_INTERVENCIÓN"]
+          : (r.PUNTO_INTERVENCION != null ? r.PUNTO_INTERVENCION : r.PUNTO);
+        return {
+          ID_META: r.ID_META,
+          ANIO: f ? f.getFullYear() : toInt(r.AÑO != null ? r.AÑO : r.ANIO),
+          MES: f ? f.getMonth() + 1 : toInt(r.MES),
+          FECHA: f,
+          PROGRAMA: r.PROGRAMA != null ? String(r.PROGRAMA).trim() : null,
+          ESPECIALISTA: r.ESPECIALISTA,
+          TIPO_SERVICIO: r.TIPO_SERVICIO,
+          COMPLEJIDAD: r.COMPLEJIDAD != null ? normComplejidad(r.COMPLEJIDAD) : null,
+          TIPO_TAREA: r.TIPO_TAREA,
+          META_CANTIDAD: toNum(r.META_CANTIDAD),
+          META_FOCALIZADOS: toNum(r.META_FOCALIZADOS),
+          PUNTO: punto != null ? String(punto).trim() : "(sin punto)",
         };
       });
     }
@@ -218,7 +251,7 @@
       throw err;
     }
 
-    return { ejecucion: eje, metas: met, focalizados: focRows || [], clientes: cli, bd };
+    return { ejecucion: eje, metas: met, focalizados: focRows || [], clientes: cli, bd, programado };
   }
 
   // -------------------------------------------------------------------------
@@ -250,7 +283,24 @@
   function filtrarClientes(data, flt) {
     let cli = data.clientes || [];
     if (flt.meses && flt.meses.length) cli = cli.filter((r) => flt.meses.includes(r.MES));
+    if (flt.programas && flt.programas.length) {
+      cli = cli.filter((r) => r.PROGRAMA == null || flt.programas.includes(r.PROGRAMA));
+    } else if (CFG.PROGRAMA_PRINCIPAL &&
+               cli.some((r) => r.PROGRAMA === CFG.PROGRAMA_PRINCIPAL)) {
+      // Sin filtro de programa: por defecto solo el programa principal (POI)
+      cli = cli.filter((r) => r.PROGRAMA === CFG.PROGRAMA_PRINCIPAL);
+    }
     return cli;
+  }
+
+  // Fechas programadas de intervención (programado.xlsx): responde a los
+  // filtros globales de programa / mes / especialista.
+  function filtrarProgramado(data, flt) {
+    let p = data.programado || [];
+    if (flt.programas && flt.programas.length) p = p.filter((r) => flt.programas.includes(r.PROGRAMA));
+    if (flt.meses && flt.meses.length) p = p.filter((r) => flt.meses.includes(r.MES));
+    if (flt.especialistas && flt.especialistas.length) p = p.filter((r) => flt.especialistas.includes(r.ESPECIALISTA));
+    return p;
   }
 
   // Valores únicos ordenados de una columna sobre uno o más datasets
@@ -267,7 +317,7 @@
   global.POI.CFG = CFG;
   global.POI.semaforo = semaforo;
   global.POI.data = {
-    loadAll, aplicar, filtrar, filtrarClientes, opcionesUnicas,
+    loadAll, aplicar, filtrar, filtrarClientes, filtrarProgramado, opcionesUnicas,
     normRuc, toNum, toInt, normComplejidad,
   };
 })(window);

@@ -68,8 +68,9 @@ python -m http.server 8000
 │   ├── ejecucion.xlsx
 │   ├── metas.xlsx
 │   ├── focalizados.xlsx
-│   ├── clientes.xlsx     (opcional)
-│   └── bd.xlsx           (opcional · histórico para clasificar clientes)
+│   ├── clientes.xlsx     (opcional · metas de clientes por programa/mes/tipo)
+│   ├── bd.xlsx           (opcional · histórico para clasificar clientes)
+│   └── programado.xlsx   (opcional · fechas programadas de intervención)
 └── Dashboard POI 2026.dc.html   # Maqueta de referencia del diseño
 ```
 
@@ -81,8 +82,11 @@ python -m http.server 8000
 * **metas.xlsx**: `ID_META, AÑO, MES, PROGRAMA, ESPECIALISTA, TIPO_SERVICIO,
   TIPO_TAREA, COMPLEJIDAD, META_CANTIDAD, META_FOCALIZADOS`
 * **focalizados.xlsx**: `RUC, RAZON_SOCIAL, TIPO`
-* **clientes.xlsx**: `MES, TIPO (FOCALIZADO / NO FOCALIZADO), META`
+* **clientes.xlsx**: `MES, PROGRAMA, TIPO (FOCALIZADO / NO FOCALIZADO), META`
 * **bd.xlsx**: `AÑO, RUC, RAZON_SOCIAL` (histórico de atención)
+* **programado.xlsx** (opcional · calendario de intervención): `ID_META, AÑO,
+  MES, FECHA_PROGRAMADA, PROGRAMA, ESPECIALISTA, TIPO_SERVICIO, COMPLEJIDAD,
+  TIPO_TAREA, META_CANTIDAD, META_FOCALIZADOS, PUNTO_INTERVENCIÓN`
 
 > Las cabeceras se normalizan a MAYÚSCULAS y sin espacios al cargar, así que
 > pequeñas variaciones de formato no rompen el tablero. Los programas, meses y
