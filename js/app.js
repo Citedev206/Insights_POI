@@ -18,6 +18,7 @@
   let VIEW = "ejecutivo";
   let espSel = null;               // drill-down de la vista Especialistas
   let cliSel = null;               // empresa seleccionada en el Calendario
+  let calMode = "empresa";         // modo del calendario: "empresa" | "intervencion"
   let lastExport = null;           // datos exportables de la vista activa
 
   // ---- iconografía ----------------------------------------------------------
@@ -51,6 +52,9 @@
 
   const PROG_COLORS = [COL.accent, COL.blue, COL.mid, COL.purple, COL.soft, "#C77DC7", "#5FA0E0"];
   const colorFor = (i) => PROG_COLORS[i % PROG_COLORS.length];
+  // Paleta categórica para los puntos de intervención (calendario programado)
+  const PUNTO_COLORS = ["#7A2A7A", "#2E5FD4", "#1F9D6B", "#E0A82E", "#C0392B", "#9B4D9B",
+    "#0FA3A3", "#D2691E", "#5FA0E0", "#C77DC7", "#6B8E23", "#B0338A", "#3D7A5C", "#8A5A2B"];
 
   // ---- helpers de estado semáforo ------------------------------------------
   const estadoTxt = { verde: "En meta", amarillo: "En proceso", rojo: "En riesgo" };
@@ -157,6 +161,16 @@
   //  VISTAS
   // =========================================================================
   function currentData() { return D.aplicar(STORE, FILTER); }
+
+  // Sin filtro de programa, limita al programa principal (POI). Con filtro,
+  // respeta el filtro. Sirve para que clientes (atendidos + meta) usen el
+  // mismo alcance POI por defecto.
+  function scopeMainPrograma(rows, progCol) {
+    if (FILTER.programas && FILTER.programas.length) return rows;
+    const P = CFG.PROGRAMA_PRINCIPAL;
+    if (P && rows.some((r) => r[progCol] === P)) return rows.filter((r) => r[progCol] === P);
+    return rows;
+  }
 
   // Ejecución para el indicador de clientes: sin filtro de programa, se limita
   // al programa principal (POI) para que "atendidos" y su meta usen el mismo
@@ -296,7 +310,6 @@
     const eje = ejeG.filter((r) => r[CFG.X.ESPECIALISTA] === espSel);
     const met = metG.filter((r) => r[CFG.M.ESPECIALISTA] === espSel);
     const k = MT.kpis(eje, met);
-    const cx = MT.complejidadResumen(eje);
     const hm = MT.heatmapCumplimiento(eje, met);
     const tm = MT.tendenciaMensual(eje, met);
     const porProg = MT.metaVsEjec(eje, met, CFG.X.PROGRAMA, CFG.M.PROGRAMA);
@@ -322,7 +335,7 @@
       }),
       kpiCard({
         name: "Clientes atendidos", icon: I.building, tone: "blue", value: fmt(k.clientes),
-        foot: `<span class="muted"><span class="strong">${fmt(k.focalizados)}</span> focalizados · prod. ${fmt(cx.ponderado)}</span>`
+        foot: `<span class="muted"><span class="strong">${fmt(k.focalizados)}</span> focalizados</span>`
       }),
     ].join("");
 
@@ -336,14 +349,47 @@
         ${panel("Meta vs Ejecutado por complejidad", "", CH.barsMetaEjec(porComp, { gutter: 90 }), legendMetaEjec)}
       </section>
       ${panel("Meta vs Ejecutado por programa", "", CH.barsMetaEjec(porProg, { gutter: 140 }), legendMetaEjec)}
-      <section class="card tablecard" id="tbl-esp"></section>`;
+      <section class="card tablecard" id="tbl-esp"></section>
+      <section class="card tablecard" id="tbl-cli-meta"></section>`;
+  }
+
+  // Celda "atendido / meta" con barra de progreso (meta de clientes)
+  function metaCell(aten, meta, tiene) {
+    if (!tiene) return `<span class="muted">${fmt(aten)} / —</span>`;
+    const p = meta ? (aten / meta) * 100 : 0, c = CH.semColor(p);
+    return `<div class="cellbar" style="min-width:140px"><div class="t"><span style="width:${Math.max(0, Math.min(p, 100)).toFixed(0)}%;background:${c}"></span></div><span class="pv" style="width:auto;min-width:52px">${fmt(aten)} / ${fmt1(meta)}</span></div>`;
   }
 
   function afterEspecialistas() {
     const pick = document.getElementById("esp-pick");
     if (pick) pick.addEventListener("change", (e) => { espSel = e.target.value; renderView(); });
-    const { eje: ejeG } = currentData();
+    const { eje: ejeG, met: metG } = currentData();
     if (!espSel) return;
+
+    // --- Meta de clientes atendidos por especialista (todos · alcance POI) ---
+    const ejePoi = clientesScopedEje(ejeG);
+    const metPoi = scopeMainPrograma(metG, CFG.M.PROGRAMA);
+    const espsConMeta = new Set(metPoi.map((r) => r[CFG.M.ESPECIALISTA]).filter((v) => v != null && v !== ""));
+    const metCli = D.filtrarClientes(STORE, FILTER);
+    const kc = MT.kpisClientes(ejePoi, metCli);
+    const metaNoFoc = Math.max(kc.meta_clientes - kc.meta_focalizados, 0);
+    const cme = MT.clientesMetaEspecialistas(ejePoi, espsConMeta, kc.meta_focalizados, metaNoFoc);
+    const cliMetaEl = document.getElementById("tbl-cli-meta");
+    if (cliMetaEl) {
+      mountTable(cliMetaEl, {
+        title: "Meta de clientes atendidos por especialista",
+        sub: `Alcance POI · cada cliente cuenta para quien lo atendió primero · meta repartida entre ${cme.Nesp} especialistas con metas (foc ${fmt1(cme.targetFoc)} · no foc ${fmt1(cme.targetNoFoc)} c/u)`,
+        searchPlaceholder: "Buscar especialista…", searchKeys: ["esp"], rows: cme.rows,
+        pageSize: 16, totalLabel: " especialistas",
+        columns: [
+          { label: "Especialista", cls: "name", render: (r) => esc(r.esp) + (r.tieneMeta ? "" : ` <span class="badge neutral"><i></i>sin meta</span>`) },
+          { label: "Focalizados (aten / meta)", render: (r) => metaCell(r.foc, r.metaFoc, r.tieneMeta) },
+          { label: "No focalizados (aten / meta)", render: (r) => metaCell(r.nofoc, r.metaNoFoc, r.tieneMeta) },
+          { label: "Total", cls: "num strong", render: (r) => fmt(r.total) },
+        ],
+      });
+    }
+
     const eje = ejeG.filter((r) => r[CFG.X.ESPECIALISTA] === espSel);
     const cl = MT.clientesResumen(eje, STORE.bd);
     const rows = cl.tabla.slice().sort((a, b) => b.Servicios - a.Servicios);
@@ -521,10 +567,12 @@
   function viewServicios() {
     const { eje, met } = currentData();
     if (!eje.length) return noData();
-    const cx = MT.complejidadResumen(eje);
     const porServ = MT.metaVsEjec(eje, met, CFG.X.SERVICIO, CFG.M.SERVICIO);
     const porTarea = MT.metaVsEjec(eje, met, CFG.X.TAREA, CFG.M.TAREA);
+    const porComp = MT.metaVsEjec(eje, met, CFG.X.COMPLEJIDAD, CFG.M.COMPLEJIDAD, CFG.COMPLEJIDADES);
     const k = MT.kpis(eje, met);
+    const servConMeta = porServ.filter((r) => r.Meta > 0).length;
+    const servRiesgo = porServ.filter((r) => r.Meta > 0 && r.Cumplimiento < CFG.SEMAFORO_AMARILLO).length;
 
     lastExport = {
       filename: "servicios.csv",
@@ -549,17 +597,13 @@
         foot: `<span class="muted">Ejecutado ${fmt(k.ejecutado)} / ${fmt(k.meta)}</span>`
       }),
       kpiCard({
-        name: "Productividad ponderada", icon: I.scale, tone: "purple", value: fmt(cx.ponderado),
-        foot: `<span class="muted">Alta×3 · Media×2 · Baja×1</span>`
+        name: "Servicios en riesgo", icon: I.alert, tone: servRiesgo ? "red" : "green",
+        value: fmt(servRiesgo), crit: servRiesgo > 0,
+        foot: `<span class="muted">de <span class="strong">${fmt(servConMeta)}</span> con meta · &lt;80%</span>`
       }),
     ].join("");
 
-    // === "Estructura de la ejecución" — DOS GRÁFICOS NUEVOS ===
-    // (reemplazan sunburst + treemap: aportan lectura de estructura y decisión)
-    const compSegs = CFG.COMPLEJIDADES.map((c) => ({
-      label: c, value: cx.conteo[c],
-      color: c === "Alta" ? COL.purple : c === "Media" ? COL.mid : COL.soft,
-    }));
+    // === "Estructura de la ejecución" — Meta vs Ejecutado por complejidad + brechas ===
     const brecha = porServ.filter((r) => r.Meta > 0).slice()
       .sort((a, b) => b.Brecha - a.Brecha).slice(0, 8)
       .map((r) => ({ label: r.Dim, value: r.Brecha, color: CH.semColor(r.Cumplimiento) }));
@@ -567,10 +611,10 @@
     return `
       ${sectionHead("Indicadores de servicios", "Volumen y cumplimiento")}
       <section class="grid grid-kpi">${kpis}</section>
-      ${sectionHead("Estructura de la ejecución", "Composición del esfuerzo y brechas para la toma de decisiones")}
+      ${sectionHead("Estructura de la ejecución", "Meta vs ejecución por complejidad y brechas para la toma de decisiones")}
       <section class="grid g-2">
-        ${panel("Composición por complejidad", `${fmt(cx.total)} servicios · productividad ponderada ${fmt(cx.ponderado)}`, CH.donut(compSegs, fmt(cx.total), "servicios") + CH.legendList(compSegs))}
-        ${panel("Servicios con mayor brecha", "Meta no ejecutada (Top 8) · prioridad de atención", brecha.length ? CH.barsSimple(brecha, { gutter: 200, rowH: 30 }) : CH.empty("Sin brechas: metas cumplidas"))}
+        ${panel("Meta vs Ejecutado por complejidad", "Cantidad programada vs ejecutada · Alta · Media · Baja", CH.barsMetaEjec(porComp, { gutter: 90 }), legendMetaEjec)}
+        ${panel("Servicios con mayor brecha", "Meta no ejecutada (Top 8) · prioridad de atención", brecha.length ? CH.barsSimple(brecha, { gutter: 200 }) : CH.empty("Sin brechas: metas cumplidas"))}
       </section>
       ${sectionHead("Cumplimiento por servicio y por tarea")}
       <section class="grid g-2">
@@ -580,8 +624,17 @@
       ${panel("Meta vs Ejecutado por servicio", "", CH.barsMetaEjec(porServ.slice().sort((a, b) => b.Ejecutado - a.Ejecutado), { gutter: 170 }), legendMetaEjec)}`;
   }
 
-  // ---- CALENDARIO DE ATENCIÓN (por empresa) --------------------------------
+  // ---- CALENDARIO: dos modos (empresa atendida / puntos de intervención) ---
   function viewCalendario() {
+    const tabs = `<div class="segmented" id="cal-tabs">
+      <button class="seg ${calMode === "empresa" ? "active" : ""}" data-mode="empresa">Por empresa</button>
+      <button class="seg ${calMode === "intervencion" ? "active" : ""}" data-mode="intervencion">Puntos de intervención</button>
+    </div>`;
+    const body = calMode === "intervencion" ? viewCalIntervencion() : viewCalEmpresa();
+    return `${tabs}${body}`;
+  }
+
+  function viewCalEmpresa() {
     const { eje } = currentData();
     if (!eje.length) return noData();
     const byRuc = new Map();
@@ -678,9 +731,136 @@
     </div>`;
   }
 
+  const isoLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+  // ---- Calendario · modo Puntos de intervención (programado.xlsx) ----------
+  function viewCalIntervencion() {
+    const sub = "Fechas programadas de intervención · data/programado.xlsx";
+    if (!STORE.programado || !STORE.programado.length)
+      return `${sectionHead("Puntos de intervención", sub)}
+        <div class="empty" style="min-height:220px">No se encontró <code>data/programado.xlsx</code> (o está vacío).<br>
+        Agrégalo con las fechas programadas (CdD-FEST / WORLD-VISION) para ver este calendario.</div>`;
+    const prog = D.filtrarProgramado(STORE, FILTER).filter((r) => r.FECHA instanceof Date && !isNaN(r.FECHA));
+    if (!prog.length)
+      return `${sectionHead("Puntos de intervención", sub)}
+        <div class="empty" style="min-height:220px">No hay fechas programadas para los filtros actuales.</div>`;
+
+    const puntos = Array.from(new Set(prog.map((r) => r.PUNTO))).sort((a, b) => String(a).localeCompare(b, "es"));
+    const colorOf = new Map(puntos.map((p, i) => [p, PUNTO_COLORS[i % PUNTO_COLORS.length]]));
+
+    const monthMap = new Map();
+    prog.forEach((r) => {
+      const d = r.FECHA, key = d.getFullYear() + "-" + (d.getMonth() + 1);
+      if (!monthMap.has(key)) monthMap.set(key, { year: d.getFullYear(), month: d.getMonth() + 1, days: new Map() });
+      const mm = monthMap.get(key), day = d.getDate();
+      if (!mm.days.has(day)) mm.days.set(day, []);
+      mm.days.get(day).push(r);
+    });
+    const months = Array.from(monthMap.values()).sort((a, b) => a.year - b.year || a.month - b.month);
+
+    const esps = new Set(prog.map((r) => r.ESPECIALISTA).filter((v) => v != null && v !== ""));
+    const metaCant = prog.reduce((a, r) => a + (r.META_CANTIDAD || 0), 0);
+    const kpis = [
+      kpiCard({ name: "Intervenciones programadas", icon: I.calendar, tone: "purple", value: fmt(prog.length),
+        foot: `<span class="muted">fechas en el calendario</span>` }),
+      kpiCard({ name: "Puntos de intervención", icon: I.pin, tone: "blue", value: fmt(puntos.length),
+        foot: `<span class="muted">ubicaciones distintas</span>` }),
+      kpiCard({ name: "Meta (cantidad)", icon: I.target, tone: "purple", value: fmt(metaCant),
+        foot: `<span class="muted">servicios programados</span>` }),
+      kpiCard({ name: "Especialistas", icon: I.user, tone: "blue", value: fmt(esps.size),
+        foot: `<span class="muted">asignados</span>` }),
+    ].join("");
+
+    const legend = `<div class="cal-legend-punto">${puntos.map((p) =>
+      `<span><i style="background:${colorOf.get(p)}"></i>${esc(p)}</span>`).join("")}</div>`;
+
+    lastExport = {
+      filename: "intervenciones_programadas.csv",
+      columns: ["Fecha", "Punto", "Programa", "Especialista", "Tipo servicio", "Tipo tarea", "Meta cantidad"],
+      rows: prog.slice().sort((a, b) => a.FECHA - b.FECHA).map((r) => [
+        isoLocal(r.FECHA), r.PUNTO, r.PROGRAMA, r.ESPECIALISTA, r.TIPO_SERVICIO, r.TIPO_TAREA, Math.round(r.META_CANTIDAD)])
+    };
+
+    return `${sectionHead("Puntos de intervención", sub)}
+      <section class="grid grid-kpi">${kpis}</section>
+      ${panel("Fechas de intervención por mes", "clic en un día para ver el detalle abajo · el color indica el punto de intervención",
+        `<div class="cal-grid">${months.map((mm) => renderMonthIntervencion(mm, colorOf)).join("")}</div>${legend}`)}
+      <section class="card tablecard" id="cal-detail">
+        <div class="thead"><div><h3>Detalle del día</h3><div class="sub">Haz clic en un día con intervención para ver los servicios programados</div></div></div>
+      </section>`;
+  }
+
+  function renderMonthIntervencion(mm, colorOf) {
+    const dows = ["L", "M", "M", "J", "V", "S", "D"];
+    const daysInMonth = new Date(mm.year, mm.month, 0).getDate();
+    const offset = (new Date(mm.year, mm.month - 1, 1).getDay() + 6) % 7;
+    const cells = [];
+    for (let i = 0; i < offset; i++) cells.push(`<div class="cal-day empty"></div>`);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const items = mm.days.get(d);
+      if (!items) { cells.push(`<div class="cal-day">${d}</div>`); continue; }
+      const distinct = Array.from(new Set(items.map((r) => r.PUNTO)));
+      const color = colorOf.get(distinct[0]) || COL.accent;
+      const multi = distinct.length > 1;
+      const iso = `${mm.year}-${String(mm.month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const cnt = items.length > 1 ? `<span class="cal-cnt">${items.length}</span>` : "";
+      cells.push(`<div class="cal-day on${multi ? " multi" : ""}" data-date="${iso}" style="background:${color};cursor:pointer" title="Clic para ver el detalle">${d}${cnt}</div>`);
+    }
+    return `<div class="cal-month">
+      <h4>${esc(CFG.MESES_NOMBRE[mm.month] || mm.month)} ${mm.year}</h4>
+      <div class="cal-week dow">${dows.map((x) => `<div class="cal-dow">${x}</div>`).join("")}</div>
+      <div class="cal-week">${cells.join("")}</div>
+    </div>`;
+  }
+
+  function renderCalDetail(dateIso, items) {
+    const el = document.getElementById("cal-detail");
+    if (!el) return;
+    const [y, m, d] = dateIso.split("-");
+    const titulo = `${+d} de ${CFG.MESES_NOMBRE[+m] || m} ${y}`;
+    if (!items.length) {
+      el.innerHTML = `<div class="thead"><div><h3>${esc(titulo)}</h3><div class="sub">Sin intervenciones programadas</div></div></div>`;
+      return;
+    }
+    const rows = items.map((r) => `<tr>
+      <td class="name">${esc(r.PUNTO)}</td>
+      <td>${esc(r.PROGRAMA || "")}</td>
+      <td>${esc(r.ESPECIALISTA || "")}</td>
+      <td>${esc(r.TIPO_SERVICIO || "")}</td>
+      <td>${esc(r.TIPO_TAREA || "")}</td>
+      <td>${esc(r.COMPLEJIDAD || "")}</td>
+      <td class="num strong">${fmt(r.META_CANTIDAD)}</td>
+    </tr>`).join("");
+    el.innerHTML = `<div class="thead"><div><h3>Intervenciones del ${esc(titulo)}</h3><div class="sub">${items.length} programada(s)</div></div></div>
+      <div class="tablewrap"><table class="dt"><thead><tr>
+        <th>Punto</th><th>Programa</th><th>Especialista</th><th>Tipo de servicio</th><th>Tipo de tarea</th><th>Complejidad</th><th class="num">Meta</th>
+      </tr></thead><tbody>${rows}</tbody></table></div>`;
+    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   function afterCalendario() {
+    const tabs = document.getElementById("cal-tabs");
+    if (tabs) tabs.querySelectorAll(".seg").forEach((b) =>
+      b.addEventListener("click", () => { if (calMode !== b.dataset.mode) { calMode = b.dataset.mode; renderView(); } }));
+
     const pick = document.getElementById("cli-pick");
     if (pick) pick.addEventListener("change", (e) => { cliSel = e.target.value; renderView(); });
+
+    if (calMode === "intervencion") {
+      const prog = D.filtrarProgramado(STORE, FILTER).filter((r) => r.FECHA instanceof Date && !isNaN(r.FECHA));
+      const byDate = new Map();
+      prog.forEach((r) => {
+        const iso = isoLocal(r.FECHA);
+        if (!byDate.has(iso)) byDate.set(iso, []);
+        byDate.get(iso).push(r);
+      });
+      document.querySelectorAll(".cal-day[data-date]").forEach((cell) =>
+        cell.addEventListener("click", () => {
+          document.querySelectorAll(".cal-day.sel").forEach((c) => c.classList.remove("sel"));
+          cell.classList.add("sel");
+          renderCalDetail(cell.dataset.date, byDate.get(cell.dataset.date) || []);
+        }));
+    }
   }
 
   // =========================================================================
