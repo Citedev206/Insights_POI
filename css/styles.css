@@ -396,7 +396,7 @@ select.pick:focus{ outline:none; border-color:var(--purple); }
 .cal-day{ display:grid; place-items:center; border-radius:6px; font-size:.72rem;
   color:var(--muted); background:var(--track); font-variant-numeric:tabular-nums; }
 .cal-day.empty{ background:transparent; }
-.cal-day.on{ color:#fff; font-weight:600; }
+.cal-day.on{ color:#fff; font-weight:600; text-shadow:0 1px 2px rgba(0,0,0,.35); }
 .cal-day.lv1, .cal-legend i.lv1{ background:#EAD3EA; }
 .cal-day.lv1{ color:var(--purple); }
 .cal-day.lv2, .cal-legend i.lv2{ background:#C77DC7; }

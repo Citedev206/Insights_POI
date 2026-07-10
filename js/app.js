@@ -776,9 +776,9 @@
 
     lastExport = {
       filename: "intervenciones_programadas.csv",
-      columns: ["Fecha", "Punto", "Programa", "Especialista", "Tipo servicio", "Tipo tarea", "Meta cantidad"],
+      columns: ["Fecha", "Punto", "Programa", "Especialista", "Turno", "Tipo servicio", "Tipo tarea", "Temática", "Meta cantidad"],
       rows: prog.slice().sort((a, b) => a.FECHA - b.FECHA).map((r) => [
-        isoLocal(r.FECHA), r.PUNTO, r.PROGRAMA, r.ESPECIALISTA, r.TIPO_SERVICIO, r.TIPO_TAREA, Math.round(r.META_CANTIDAD)])
+        isoLocal(r.FECHA), r.PUNTO, r.PROGRAMA, r.ESPECIALISTA, r.TURNO, r.TIPO_SERVICIO, r.TIPO_TAREA, r.TEMATICA, Math.round(r.META_CANTIDAD)])
     };
 
     return `${sectionHead("Puntos de intervención", sub)}
@@ -800,11 +800,14 @@
       const items = mm.days.get(d);
       if (!items) { cells.push(`<div class="cal-day">${d}</div>`); continue; }
       const distinct = Array.from(new Set(items.map((r) => r.PUNTO)));
-      const color = colorOf.get(distinct[0]) || COL.accent;
-      const multi = distinct.length > 1;
+      const colors = distinct.map((p) => colorOf.get(p) || COL.accent);
+      // Varios puntos ese día → franjas verticales, un color por punto
+      const bg = colors.length === 1 ? colors[0]
+        : `linear-gradient(90deg, ${colors.map((c, i) =>
+          `${c} ${(i / colors.length * 100).toFixed(1)}% ${((i + 1) / colors.length * 100).toFixed(1)}%`).join(", ")})`;
       const iso = `${mm.year}-${String(mm.month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const cnt = items.length > 1 ? `<span class="cal-cnt">${items.length}</span>` : "";
-      cells.push(`<div class="cal-day on${multi ? " multi" : ""}" data-date="${iso}" style="background:${color};cursor:pointer" title="Clic para ver el detalle">${d}${cnt}</div>`);
+      cells.push(`<div class="cal-day on" data-date="${iso}" style="background:${bg};cursor:pointer" title="${esc(distinct.join(" · "))} — clic para ver el detalle">${d}${cnt}</div>`);
     }
     return `<div class="cal-month">
       <h4>${esc(CFG.MESES_NOMBRE[mm.month] || mm.month)} ${mm.year}</h4>
@@ -826,14 +829,16 @@
       <td class="name">${esc(r.PUNTO)}</td>
       <td>${esc(r.PROGRAMA || "")}</td>
       <td>${esc(r.ESPECIALISTA || "")}</td>
+      <td>${r.TURNO ? `<span class="badge neutral"><i></i>${esc(r.TURNO)}</span>` : ""}</td>
       <td>${esc(r.TIPO_SERVICIO || "")}</td>
       <td>${esc(r.TIPO_TAREA || "")}</td>
-      <td>${esc(r.COMPLEJIDAD || "")}</td>
+      <td>${esc(r.TEMATICA || "")}</td>
       <td class="num strong">${fmt(r.META_CANTIDAD)}</td>
     </tr>`).join("");
-    el.innerHTML = `<div class="thead"><div><h3>Intervenciones del ${esc(titulo)}</h3><div class="sub">${items.length} programada(s)</div></div></div>
+    const totalMeta = items.reduce((a, r) => a + (r.META_CANTIDAD || 0), 0);
+    el.innerHTML = `<div class="thead"><div><h3>Intervenciones del ${esc(titulo)}</h3><div class="sub">${items.length} programada(s) · meta total ${fmt(totalMeta)}</div></div></div>
       <div class="tablewrap"><table class="dt"><thead><tr>
-        <th>Punto</th><th>Programa</th><th>Especialista</th><th>Tipo de servicio</th><th>Tipo de tarea</th><th>Complejidad</th><th class="num">Meta</th>
+        <th>Punto</th><th>Programa</th><th>Especialista</th><th>Turno</th><th>Tipo de servicio</th><th>Tipo de tarea</th><th>Temática</th><th class="num">Meta</th>
       </tr></thead><tbody>${rows}</tbody></table></div>`;
     el.scrollIntoView({ behavior: "smooth", block: "nearest" });
   }

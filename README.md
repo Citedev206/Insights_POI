@@ -85,8 +85,9 @@ python -m http.server 8000
 * **clientes.xlsx**: `MES, PROGRAMA, TIPO (FOCALIZADO / NO FOCALIZADO), META`
 * **bd.xlsx**: `AÑO, RUC, RAZON_SOCIAL` (histórico de atención)
 * **programado.xlsx** (opcional · calendario de intervención): `ID_META, AÑO,
-  MES, FECHA_PROGRAMADA, PROGRAMA, ESPECIALISTA, TIPO_SERVICIO, COMPLEJIDAD,
-  TIPO_TAREA, META_CANTIDAD, META_FOCALIZADOS, PUNTO_INTERVENCIÓN`
+  MES, FECHA_PROGRAMADA, PROGRAMA, ESPECIALISTA, TURNO (Mañana/Tarde),
+  TIPO_SERVICIO, COMPLEJIDAD, TEMÁTICA, TIPO_TAREA, META_CANTIDAD,
+  META_FOCALIZADOS, PUNTO_INTERVENCIÓN`
 
 > Las cabeceras se normalizan a MAYÚSCULAS y sin espacios al cargar, así que
 > pequeñas variaciones de formato no rompen el tablero. Los programas, meses y

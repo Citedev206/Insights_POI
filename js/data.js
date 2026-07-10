@@ -218,6 +218,8 @@
         const f = parseFecha(r.FECHA_PROGRAMADA);
         const punto = r["PUNTO_INTERVENCIÓN"] != null ? r["PUNTO_INTERVENCIÓN"]
           : (r.PUNTO_INTERVENCION != null ? r.PUNTO_INTERVENCION : r.PUNTO);
+        const tematica = r["TEMÁTICA"] != null ? r["TEMÁTICA"]
+          : (r.TEMATICA != null ? r.TEMATICA : r.TEMA);
         return {
           ID_META: r.ID_META,
           ANIO: f ? f.getFullYear() : toInt(r.AÑO != null ? r.AÑO : r.ANIO),
@@ -225,8 +227,10 @@
           FECHA: f,
           PROGRAMA: r.PROGRAMA != null ? String(r.PROGRAMA).trim() : null,
           ESPECIALISTA: r.ESPECIALISTA,
+          TURNO: r.TURNO != null ? String(r.TURNO).trim() : "",
           TIPO_SERVICIO: r.TIPO_SERVICIO,
           COMPLEJIDAD: r.COMPLEJIDAD != null ? normComplejidad(r.COMPLEJIDAD) : null,
+          TEMATICA: tematica != null ? String(tematica).trim() : "",
           TIPO_TAREA: r.TIPO_TAREA,
           META_CANTIDAD: toNum(r.META_CANTIDAD),
           META_FOCALIZADOS: toNum(r.META_FOCALIZADOS),
