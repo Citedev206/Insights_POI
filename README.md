@@ -151,17 +151,54 @@ modos (pestañas):
   intervención muestra especialista, tema/servicio y una etiqueta de
   **duración esperada** (informativa): "asistencia técnica" ≥ 7 h, "diseño"
   3–4 h — no reprograma fechas ni asigna horarios automáticamente.
-* **Estado por componente** (C1–C5): completado / programado / pendiente,
-  especialista(s) asignado(s), última fecha ejecutada y próxima programada.
+* **Estado por componente** (C1–C5): completado / parcial / programado /
+  pendiente (ver regla de "completado" abajo), con el **desglose por
+  actividad exacta** (columna "Actividades": ✓ ejecutada, ◐ solo programada,
+  ○ pendiente, junto al **especialista responsable** y la **meta
+  institucional** de esa actividad entre paréntesis — p. ej. "✓ 3.4 · Erika
+  Turpo (27)" — según `CFG.ACTIVIDADES` en `js/data.js`), especialista(s)
+  asignado(s) al componente, última fecha ejecutada y próxima programada.
+
+**Regla de "completado":** un componente con varias actividades (p. ej. C3
+agrupa 3.1 a 3.7, C4 agrupa 4.1 a 4.3) solo cuenta como **Completado** cuando
+**TODAS** sus actividades están ejecutadas para esa UP — no basta con una
+sola. Si hay al menos una ejecutada pero no todas, el estado es **Parcial**
+(se muestra como "Parcial x/y"); si ninguna está ejecutada pero hay alguna
+programada, es "Programado"; si no hay ningún evento, "Pendiente". Los
+componentes de una sola actividad (C1, C2, C5 en el catálogo actual) se
+comportan igual que antes (ejecutar su única actividad ya los completa). El
+**orden recomendado** trata "Parcial" igual que "Pendiente" (compite por
+prioridad según brecha): un componente a medio hacer sigue necesitando
+trabajo, no se da por atendido.
 
 ### Vista general
 
 Todas las UP a la vez, **sin mezclar** el estado de un componente con otro:
 una tarjeta por componente (C1–C5) con el conteo de UP completadas /
-programadas / pendientes, y una tabla-matriz (UP × C1–C5, buscable por RUC o
-razón social, **ordenada por defecto por más componentes completados
+parciales / pendientes (misma regla de "completado" que arriba: todas las
+actividades del componente) y una tabla-matriz (UP × C1–C5, buscable por
+RUC o razón social, **ordenada por defecto por más componentes completados
 primero**) para ver de un vistazo qué unidades productivas van más
 adelantadas y cuáles fueron atendidas en cada componente.
+
+Junto al título de cada tarjeta (p. ej. "C3") se muestra **`(completadas /
+mínimo)`** — UP que ya completaron el componente frente a la **meta mínima
+institucional** de su actividad de entrada (`MT.metaMinimaComponente` en
+`js/metrics.js`, tomada de la meta de la actividad de código más bajo del
+componente, p. ej. 3.1 para C3 — las siguientes actividades del mismo
+componente son subconjuntos más específicos con metas menores). El estado
+**"Programado" no se muestra por ahora** en estas tarjetas (se pliega dentro
+de "Pendiente") porque el programa todavía no agenda por fechas; el dato
+sigue calculándose internamente (`resumen.porComponente[g].programado`) y
+solo está comentado en `viewCddFestGeneral()` de `js/app.js` — se puede
+reactivar fácilmente cuando se retome la programación por fechas. El badge
+"Programado" de la tabla-matriz (columnas C1–C5 por UP) no se tocó.
+
+**Clic en cualquier fila de la tabla-matriz** expande, debajo, el desglose
+de **actividad exacta por componente** para esa UP (mismo checklist ✓/◐/○
++ especialista responsable que en "Por Unidad Productiva"), para ver de un
+vistazo qué actividad puntual falta y quién es el responsable dentro de un
+componente marcado "Parcial". Un segundo clic en la misma fila lo cierra.
 
 **Clic en cualquier tarjeta de componente** (p. ej. C3) abre su detalle a
 nivel de **actividad exacta** (código decimal, p. ej. 3.1 vs 3.4 — un

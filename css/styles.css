@@ -299,6 +299,8 @@ table.dt td.strong{ color:var(--ink); font-weight:600; }
 .badge.red i{ background:var(--red); }
 .badge.neutral{ color:var(--text2); background:var(--track); }
 .badge.neutral i{ background:var(--muted2); }
+.badge.blue{ color:var(--blue); background:var(--blue-tint); }
+.badge.blue i{ background:var(--blue); }
 .tfoot{ display:flex; align-items:center; justify-content:space-between; padding:12px 20px;
   border-top:1px solid var(--border-soft); background:#FBFAFC; }
 .tfoot .info{ font-size:.74rem; color:var(--muted); }
@@ -476,6 +478,7 @@ select.pick:focus{ outline:none; border-color:var(--purple); }
 .cdd-comp-card:hover{ box-shadow:var(--shadow); transform:translateY(-2px); }
 .cdd-comp-card.active{ border-color:var(--purple); box-shadow:0 0 0 2px var(--purple-tint); }
 .cdd-comp-card:focus-visible{ outline:2px solid var(--purple); outline-offset:2px; }
+.cdd-meta{ font-size:.72rem; font-weight:600; color:var(--muted); }
 
 /* Botones de actividad del detalle de componente (clic filtra la tabla) */
 .chipbar{ display:flex; flex-wrap:wrap; gap:8px; }
@@ -491,6 +494,25 @@ select.pick:focus{ outline:none; border-color:var(--purple); }
 .chip-count{ font-size:.72rem; font-weight:700; color:var(--purple); background:var(--purple-tint);
   border-radius:99px; padding:2px 9px; font-variant-numeric:tabular-nums; }
 .chip:focus-visible{ outline:2px solid var(--purple); outline-offset:2px; }
+
+/* Fila de tabla expandible (clic → detalle debajo, p. ej. actividades por
+   componente de una UP en la matriz de Vista general) */
+tr.row-clickable{ cursor:pointer; }
+tr.row-clickable:hover{ background:var(--purple-tint); }
+tr.row-expand td{ background:#FBFAFC; padding:14px 16px; border-bottom:1px solid var(--border-soft); }
+
+/* Desglose de actividades por componente (checklist ✓ ejecutada / ◐
+   programada / ○ pendiente) */
+.actgrid{ display:grid; grid-template-columns:repeat(5, minmax(0,1fr)); gap:16px; }
+.actcol-h{ font-size:.78rem; font-weight:700; margin-bottom:8px; display:flex; align-items:center; gap:6px; }
+.actcol-h .muted{ font-weight:600; font-size:.72rem; color:var(--muted); }
+.actchips{ display:flex; flex-direction:column; gap:5px; }
+.actchip{ font-size:.74rem; font-weight:600; padding:3px 8px; border-radius:7px; white-space:normal;
+  word-break:break-word; line-height:1.35; }
+.actchip.ok{ color:var(--green-ink); background:var(--green-soft); }
+.actchip.mid{ color:var(--amber-ink); background:var(--amber-soft); }
+.actchip.no{ color:var(--muted); background:var(--track); }
+.actchip-resp{ font-weight:500; opacity:.85; }
 
 /* ============================================================
    CdD-FEST · línea de tiempo del proceso de fortalecimiento

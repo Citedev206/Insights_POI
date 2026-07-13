@@ -322,6 +322,31 @@
     return codigoDecimal == null || isNaN(n) ? null : Math.floor(n);
   }
 
+  // Catálogo de actividades (código decimal, p. ej. "3.4") agrupadas por
+  // componente (1-5), a partir de CFG.ACTIVIDADES. Un componente solo se
+  // considera "completado" para una UP cuando TODAS sus actividades están
+  // ejecutadas — no basta con una sola (p. ej. C3 exige 3.1 a 3.7).
+  const ACT_POR_GRUPO = {};
+  Object.keys(CFG.ACTIVIDADES || {}).forEach((code) => {
+    const g = componenteGrupo(code);
+    if (g == null) return;
+    if (!ACT_POR_GRUPO[g]) ACT_POR_GRUPO[g] = [];
+    ACT_POR_GRUPO[g].push(code);
+  });
+  Object.keys(ACT_POR_GRUPO).forEach((g) => ACT_POR_GRUPO[g].sort());
+
+  // "Mínimo" institucional de un componente: la meta de su actividad de
+  // entrada (código más bajo, p. ej. 3.1 para C3) — las actividades
+  // siguientes del mismo componente son subconjuntos más específicos con
+  // metas menores (p. ej. 3.7 Ensayos de laboratorio = 5), no la meta
+  // "real" del componente completo.
+  function metaMinimaComponente(g) {
+    const codigos = ACT_POR_GRUPO[g] || [];
+    if (!codigos.length) return null;
+    const primero = CFG.ACTIVIDADES[codigos[0]];
+    return primero && primero.meta != null ? primero.meta : null;
+  }
+
   // Brechas por dimensión ICE para una fila de results_ice.xlsx (o [] si no
   // hay diagnóstico). Adapta el shape guardado en data.js a un arreglo
   // estable en el orden de CFG.ICE_DIM (útil para el radar).
@@ -358,17 +383,25 @@
       porComponente.get(d.componente).push(d.brecha);
     }
     const estadoDe = (g) => (estadoComponentes && estadoComponentes[g] && estadoComponentes[g].status) || "pendiente";
+    const actividadesDe = (g) => estadoComponentes && estadoComponentes[g]
+      ? { totalActividades: estadoComponentes[g].totalActividades, completadasActividades: estadoComponentes[g].completadasActividades }
+      : { totalActividades: undefined, completadasActividades: undefined };
     const c1 = {
       grupo: 1, id: "C1", brecha: null,
       estado: estadoComponentes ? estadoDe(1) : (iceRow ? "completado" : "pendiente"),
+      ...actividadesDe(1),
     };
     const resto = [2, 3, 4, 5].map((g) => {
       const brechas = porComponente.get(g) || [];
       const brechaProm = brechas.length ? brechas.reduce((a, b) => a + b, 0) / brechas.length : 0;
-      return { grupo: g, id: "C" + g, brecha: round1(brechaProm), estado: estadoDe(g) };
+      return { grupo: g, id: "C" + g, brecha: round1(brechaProm), estado: estadoDe(g), ...actividadesDe(g) };
     });
-    const pendientes = resto.filter((r) => r.estado === "pendiente").sort((a, b) => a.brecha - b.brecha);
-    const atendidos = resto.filter((r) => r.estado !== "pendiente").sort((a, b) => a.grupo - b.grupo);
+    // "parcial" (algunas actividades del componente hechas, faltan otras)
+    // compite por prioridad igual que "pendiente": todavía requiere trabajo.
+    const pendientes = resto.filter((r) => r.estado === "pendiente" || r.estado === "parcial")
+      .sort((a, b) => a.brecha - b.brecha);
+    const atendidos = resto.filter((r) => r.estado === "completado" || r.estado === "programado")
+      .sort((a, b) => a.grupo - b.grupo);
     return [c1, ...pendientes, ...atendidos];
   }
 
@@ -435,15 +468,44 @@
       for (let g = 1; g <= 5; g++) {
         const ejEvts = o.eventos.filter((e) => e.ejecutado && e.componenteGrupo === g);
         const prEvts = o.eventos.filter((e) => !e.ejecutado && e.componenteGrupo === g);
-        let status = "pendiente";
-        if (ejEvts.length) status = "completado";
-        else if (prEvts.length) status = "programado";
+        const codigos = ACT_POR_GRUPO[g] || [];
+        // Desglose por actividad exacta (p. ej. 3.1..3.7 dentro de C3): una UP
+        // debe pasar por TODAS las actividades del componente para darlo por
+        // completado, no solo por una.
+        const actividades = codigos.map((codigo) => {
+          const ejAct = ejEvts.filter((e) => e.componenteCodigo != null && e.componenteCodigo.toFixed(1) === codigo);
+          const prAct = prEvts.filter((e) => e.componenteCodigo != null && e.componenteCodigo.toFixed(1) === codigo);
+          const fechasAct = ejAct.map((e) => e.fecha).filter(Boolean);
+          return {
+            codigo, nombre: (CFG.ACTIVIDADES[codigo] || {}).nombre || codigo,
+            especialista: (CFG.ACTIVIDADES[codigo] || {}).especialista || null,
+            meta: (CFG.ACTIVIDADES[codigo] || {}).meta != null ? CFG.ACTIVIDADES[codigo].meta : null,
+            ejecutado: ejAct.length > 0, programado: ejAct.length === 0 && prAct.length > 0,
+            fecha: fechasAct.length ? new Date(Math.max(...fechasAct.map((d) => d.getTime()))) : null,
+          };
+        });
+        const totalActividades = codigos.length;
+        const completadasActividades = actividades.filter((a) => a.ejecutado).length;
+        let status;
+        if (!totalActividades) {
+          // Sin catálogo de actividades para este grupo: se mantiene la regla
+          // anterior (cualquier evento ejecutado basta).
+          status = ejEvts.length ? "completado" : (prEvts.length ? "programado" : "pendiente");
+        } else if (completadasActividades === totalActividades) {
+          status = "completado";
+        } else if (completadasActividades > 0) {
+          status = "parcial"; // algunas actividades ejecutadas, faltan otras
+        } else if (actividades.some((a) => a.programado) || prEvts.length) {
+          status = "programado";
+        } else {
+          status = "pendiente";
+        }
         const especialistas = Array.from(new Set([...ejEvts, ...prEvts]
           .map((e) => e.especialista).filter(Boolean)));
         const fechasEj = ejEvts.map((e) => e.fecha).filter(Boolean);
         const fechasPr = prEvts.map((e) => e.fecha).filter(Boolean);
         estado[g] = {
-          grupo: g, status, especialistas,
+          grupo: g, status, especialistas, actividades, totalActividades, completadasActividades,
           ultimaEjecutada: fechasEj.length ? new Date(Math.max(...fechasEj.map((d) => d.getTime()))) : null,
           proximaProgramada: fechasPr.length ? new Date(Math.min(...fechasPr.map((d) => d.getTime()))) : null,
         };
@@ -461,7 +523,7 @@
   // los estados de cada componente entre sí (cada columna es independiente).
   function cddFestResumenComponentes(unidades) {
     const porComponente = {};
-    for (let g = 1; g <= 5; g++) porComponente[g] = { completado: 0, programado: 0, pendiente: 0 };
+    for (let g = 1; g <= 5; g++) porComponente[g] = { completado: 0, parcial: 0, programado: 0, pendiente: 0 };
     const matriz = (unidades || []).map((u) => {
       const estados = {};
       let completados = 0;
@@ -471,7 +533,9 @@
         porComponente[g][st]++;
         if (st === "completado") completados++;
       }
-      return { ruc: u.ruc, razon: u.razon || u.ruc, estados, completados };
+      // Se conserva el detalle por actividad de cada componente (estadoComponentes)
+      // para poder expandir la fila y ver qué actividad exacta falta.
+      return { ruc: u.ruc, razon: u.razon || u.ruc, estados, completados, estadoComponentes: u.estadoComponentes };
     });
     // Por defecto: las UP más avanzadas (más componentes completados)
     // primero, para identificar de un vistazo quién va más adelante.
@@ -540,6 +604,7 @@
     clientesMetaEspecialistas,
     componenteGrupo, iceBrechas, ordenRecomendado, cddFestUnidades,
     cddFestResumenComponentes, cddFestDetalleComponente, reglaDuracion,
+    metaMinimaComponente,
     sumBy, uniqueCountBy, nunique, sumCol,
   };
 })(window);

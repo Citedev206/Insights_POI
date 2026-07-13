@@ -70,20 +70,24 @@
     // especialista de referencia). Un componente puede tener varias
     // actividades (p. ej. C3 agrupa 3.1 a 3.7); el código exacto de cada
     // evento viene de COMPONENTE en ejecucion.xlsx / programado.xlsx.
+    // `meta` = meta institucional del programa para esa actividad (cuántas UP
+    // se espera que la reciban en total, p. ej. 1.1 = línea base de 100 UP);
+    // no es una meta por UP individual, sirve de referencia para el "mínimo"
+    // que se muestra en la Vista general.
     ACTIVIDADES: {
-      "1.1": { nombre: "Medición del Índice de Competitividad", especialista: "Lita Castillo" },
-      "2.1": { nombre: "Gestión tecnológica empresarial", especialista: "Mitzuko Quispe" },
-      "3.1": { nombre: "Diseño y desarrollo de productos", especialista: "Willy Arredondo" },
-      "3.2": { nombre: "Diseño y desarrollo de productos textiles", especialista: "Eusebio Coanqui" },
-      "3.3": { nombre: "Propuestas innovadoras de productos textiles", especialista: "Diseñadora" },
-      "3.4": { nombre: "Tinturación y acabados húmedos", especialista: "Erika Turpo" },
-      "3.5": { nombre: "Soporte productivo en teñido", especialista: null },
-      "3.6": { nombre: "Soporte productivo en acabados", especialista: null },
-      "3.7": { nombre: "Ensayos de laboratorio", especialista: "Miriam Pari" },
-      "4.1": { nombre: "Marketing digital", especialista: "Luis Valencia" },
-      "4.2": { nombre: "Herramientas digitales y tecnología", especialista: "Ruth Arce" },
-      "4.3": { nombre: "Diseño de envases y empaques", especialista: "Henry Gutiérrez" },
-      "5.1": { nombre: "Comercio internacional", especialista: "Cynthia" },
+      "1.1": { nombre: "Medición del Índice de Competitividad", especialista: "Lita Castillo", meta: 100 },
+      "2.1": { nombre: "Gestión tecnológica empresarial", especialista: "Mitzuko Quispe", meta: 54 },
+      "3.1": { nombre: "Diseño y desarrollo de productos", especialista: "Willy Arredondo", meta: 54 },
+      "3.2": { nombre: "Diseño y desarrollo de productos textiles", especialista: "Eusebio Coanqui", meta: 27 },
+      "3.3": { nombre: "Propuestas innovadoras de productos textiles", especialista: "Diseñadora", meta: 27 },
+      "3.4": { nombre: "Tinturación y acabados húmedos", especialista: "Erika Turpo", meta: 27 },
+      "3.5": { nombre: "Soporte productivo en teñido", especialista: "Lita Castillo", meta: 27 },
+      "3.6": { nombre: "Soporte productivo en acabados", especialista: "Lita Castillo", meta: 27 },
+      "3.7": { nombre: "Ensayos de laboratorio", especialista: "Miriam Pari", meta: 5 },
+      "4.1": { nombre: "Marketing digital", especialista: "Luis Valencia", meta: 27 },
+      "4.2": { nombre: "Herramientas digitales y tecnología", especialista: "Ruth Arce", meta: 27 },
+      "4.3": { nombre: "Diseño de envases y empaques", especialista: "Henry Gutiérrez", meta: 27 },
+      "5.1": { nombre: "Comercio internacional", especialista: "Cynthia Perez", meta: 18 },
     },
 
     // ---- CdD-FEST: dimensiones del ICE (results_ice.xlsx) -----------------

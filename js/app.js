@@ -109,6 +109,7 @@
   function mountTable(el, cfg) {
     let q = "", page = 1;
     const pageSize = cfg.pageSize || 10;
+    const expanded = new Set(); // claves (cfg.expandKey) de filas abiertas — solo si cfg.renderExpand
     function filtered() {
       if (!q) return cfg.rows;
       const t = q.toLowerCase();
@@ -121,8 +122,15 @@
       if (page > pages) page = pages;
       const slice = rows.slice((page - 1) * pageSize, page * pageSize);
       const thead = `<tr>${cfg.columns.map((c) => `<th class="${c.cls || ""}">${esc(c.label)}</th>`).join("")}</tr>`;
-      const tbody = slice.map((r) => `<tr>${cfg.columns.map((c) =>
-        `<td class="${c.cls || ""} ${c.tdcls || ""}">${c.render ? c.render(r) : esc(r[c.key])}</td>`).join("")}</tr>`).join("")
+      const tbody = slice.map((r) => {
+        const key = cfg.expandKey ? String(r[cfg.expandKey]) : null;
+        const isOpen = cfg.renderExpand && key != null && expanded.has(key);
+        const mainRow = `<tr class="${cfg.renderExpand ? "row-clickable" : ""}"${key != null ? ` data-key="${esc(key)}"` : ""}>${cfg.columns.map((c) =>
+          `<td class="${c.cls || ""} ${c.tdcls || ""}">${c.render ? c.render(r) : esc(r[c.key])}</td>`).join("")}</tr>`;
+        const expandRow = isOpen
+          ? `<tr class="row-expand"><td colspan="${cfg.columns.length}">${cfg.renderExpand(r)}</td></tr>` : "";
+        return mainRow + expandRow;
+      }).join("")
         || `<tr><td colspan="${cfg.columns.length}"><div class="empty">Sin resultados</div></td></tr>`;
       let pager = "";
       if (pages > 1) {
@@ -152,6 +160,14 @@
       });
       el.querySelectorAll(".pager button[data-p]").forEach((b) =>
         b.addEventListener("click", () => { page = +b.dataset.p; render(); }));
+      if (cfg.renderExpand) {
+        el.querySelectorAll("tr.row-clickable[data-key]").forEach((tr) =>
+          tr.addEventListener("click", () => {
+            const k = tr.dataset.key;
+            if (expanded.has(k)) expanded.delete(k); else expanded.add(k);
+            render();
+          }));
+      }
     }
     render();
   }
@@ -811,14 +827,22 @@
     const esps = new Set(prog.map((r) => r.ESPECIALISTA).filter((v) => v != null && v !== ""));
     const metaCant = prog.reduce((a, r) => a + (r.META_CANTIDAD || 0), 0);
     const kpis = [
-      kpiCard({ name: "Intervenciones programadas", icon: I.calendar, tone: "purple", value: fmt(prog.length),
-        foot: `<span class="muted">fechas en el calendario</span>` }),
-      kpiCard({ name: "Puntos de intervención", icon: I.pin, tone: "blue", value: fmt(puntos.length),
-        foot: `<span class="muted">ubicaciones distintas</span>` }),
-      kpiCard({ name: "Meta (cantidad)", icon: I.target, tone: "purple", value: fmt(metaCant),
-        foot: `<span class="muted">servicios programados</span>` }),
-      kpiCard({ name: "Especialistas", icon: I.user, tone: "blue", value: fmt(esps.size),
-        foot: `<span class="muted">asignados</span>` }),
+      kpiCard({
+        name: "Intervenciones programadas", icon: I.calendar, tone: "purple", value: fmt(prog.length),
+        foot: `<span class="muted">fechas en el calendario</span>`
+      }),
+      kpiCard({
+        name: "Puntos de intervención", icon: I.pin, tone: "blue", value: fmt(puntos.length),
+        foot: `<span class="muted">ubicaciones distintas</span>`
+      }),
+      kpiCard({
+        name: "Meta (cantidad)", icon: I.target, tone: "purple", value: fmt(metaCant),
+        foot: `<span class="muted">servicios programados</span>`
+      }),
+      kpiCard({
+        name: "Especialistas", icon: I.user, tone: "blue", value: fmt(esps.size),
+        foot: `<span class="muted">asignados</span>`
+      }),
     ].join("");
 
     const legend = `<div class="cal-legend-punto">${puntos.map((p) =>
@@ -834,7 +858,7 @@
     return `${sectionHead("Puntos de intervención", sub)}
       <section class="grid grid-kpi">${kpis}</section>
       ${panel("Fechas de intervención por mes", "clic en un día para ver el detalle abajo · el color indica el punto de intervención",
-        `<div class="cal-grid">${months.map((mm) => renderMonthIntervencion(mm, colorOf)).join("")}</div>${legend}`)}
+      `<div class="cal-grid">${months.map((mm) => renderMonthIntervencion(mm, colorOf)).join("")}</div>${legend}`)}
       <section class="card tablecard" id="cal-detail">
         <div class="thead"><div><h3>Detalle del día</h3><div class="sub">Haz clic en un día con intervención para ver los servicios programados</div></div></div>
       </section>`;
@@ -1021,7 +1045,7 @@
       ? `${panel("Días con intervención por mes", "clic en un día para resaltar en la línea de tiempo · sólido = ejecutado, trama = solo programado",
         months.length ? `<div class="cal-grid">${months.map(renderMonthComponente).join("")}</div>${compLegend}` : CH.empty("Sin fechas registradas"))}
       ${panel("Línea de tiempo del proceso de fortalecimiento", "",
-        `<div class="tl-list">${up.eventos.map(renderTimelineRow).join("")}</div>`)}`
+          `<div class="tl-list">${up.eventos.map(renderTimelineRow).join("")}</div>`)}`
       : panel("Línea de tiempo del proceso de fortalecimiento", "", CH.empty("Sin intervenciones registradas aún para esta unidad productiva"));
 
     return `
@@ -1037,8 +1061,9 @@
     return `<div class="orden-list">${orden.map((o, idx) => {
       const comp = CFG.COMPONENTES[o.grupo];
       const badge = o.estado === "completado" ? `<span class="badge green"><i></i>Completado</span>`
-        : o.estado === "programado" ? `<span class="badge amber"><i></i>Programado</span>`
-          : `<span class="badge neutral"><i></i>Pendiente</span>`;
+        : o.estado === "parcial" ? `<span class="badge blue"><i></i>Parcial ${fmt(o.completadasActividades)}/${fmt(o.totalActividades)}</span>`
+          : o.estado === "programado" ? `<span class="badge amber"><i></i>Programado</span>`
+            : `<span class="badge neutral"><i></i>Pendiente</span>`;
       const brechaTxt = o.brecha != null ? `${fmt1(o.brecha)}% brecha promedio` : "Línea base (diagnóstico)";
       return `<div class="orden-row">
         <span class="orden-pos">${idx + 1}</span>
@@ -1053,17 +1078,44 @@
   }
 
   // ---- CdD-FEST · Vista general: todas las UP por componente (sin mezclar) -
-  function compBadge(status) {
+  // `estado` es el objeto de estadoComponentes[g] (status + desglose por
+  // actividad). "parcial" = algunas actividades del componente ejecutadas
+  // pero no todas — un componente solo es "completado" si TODAS lo están.
+  function compBadge(estado) {
+    const status = (estado && estado.status) || "pendiente";
     if (status === "completado") return `<span class="badge green"><i></i>Completado</span>`;
+    if (status === "parcial") {
+      const total = (estado && estado.totalActividades) || 0;
+      const done = (estado && estado.completadasActividades) || 0;
+      return `<span class="badge blue"><i></i>Parcial ${fmt(done)}/${fmt(total)}</span>`;
+    }
     if (status === "programado") return `<span class="badge amber"><i></i>Programado</span>`;
     return `<span class="badge neutral"><i></i>Pendiente</span>`;
   }
-  function triBand(completado, programado, pendiente) {
-    const total = Math.max(completado + programado + pendiente, 1);
+  // Checklist compacto de actividades de un componente (usado en la tabla
+  // "Estado de avance por componente" y en el detalle expandido de la Vista
+  // general): ✓ ejecutada · ◐ solo programada · ○ pendiente.
+  function actividadesChecklist(actividades) {
+    if (!actividades || !actividades.length) return `<span class="muted" style="font-size:.72rem">—</span>`;
+    return `<div class="actchips">${actividades.map((a) => {
+      const cls = a.ejecutado ? "ok" : (a.programado ? "mid" : "no");
+      const icon = a.ejecutado ? "✓" : (a.programado ? "◐" : "○");
+      const title = `${a.nombre}${a.fecha ? " · " + a.fecha.toLocaleDateString("es-PE") : ""}`;
+      const resp = a.especialista ? ` <span class="actchip-resp">· ${esc(a.especialista)}</span>` : "";
+      const meta = a.meta != null ? ` <span class="actchip-resp">(${fmt(a.meta)})</span>` : "";
+      return `<span class="actchip ${cls}" title="${esc(title)}">${icon} ${esc(a.codigo)}${resp}</span>`;
+    }).join("")}</div>`;
+  }
+  // "Programado" no se muestra por ahora en la franja (el programa no
+  // agenda por fechas todavía) — se pliega dentro de "Pendiente" en la
+  // llamada. Si se retoma la programación por fechas, se puede volver a
+  // pasar como un 4º segmento aquí.
+  function triBand(completado, parcial, pendiente) {
+    const total = Math.max(completado + parcial + pendiente, 1);
     const w = (n) => (n / total * 100).toFixed(1);
     return `<div class="triband">
       <span style="width:${w(completado)}%;background:${CH.SEM.verde}" title="Completado: ${completado}"></span>
-      <span style="width:${w(programado)}%;background:${CH.SEM.amarillo}" title="Programado: ${programado}"></span>
+      <span style="width:${w(parcial)}%;background:${COL.blue}" title="Parcial: ${parcial}"></span>
       <span style="width:${w(pendiente)}%;background:${COL.track}" title="Pendiente: ${pendiente}"></span>
     </div>`;
   }
@@ -1074,27 +1126,35 @@
       return noData("Aún no hay Unidades Productivas atendidas por CdD-FEST (ninguna con el componente 1.1 · Índice de Competitividad ejecutado).");
     const resumen = MT.cddFestResumenComponentes(unidades);
 
+    const estadoCsvTxt = (r, g) => {
+      const est = r.estadoComponentes && r.estadoComponentes[g];
+      if (est && est.status === "parcial") return `parcial ${est.completadasActividades}/${est.totalActividades}`;
+      return r.estados[g];
+    };
     lastExport = {
       filename: "cddfest_resumen_componentes.csv",
       columns: ["RUC", "Razón social", "C1", "C2", "C3", "C4", "C5", "Completados"],
-      rows: resumen.matriz.map((r) => [r.ruc, r.razon, r.estados[1], r.estados[2], r.estados[3], r.estados[4], r.estados[5], r.completados]),
+      rows: resumen.matriz.map((r) => [r.ruc, r.razon, estadoCsvTxt(r, 1), estadoCsvTxt(r, 2), estadoCsvTxt(r, 3), estadoCsvTxt(r, 4), estadoCsvTxt(r, 5), r.completados]),
     };
 
     const cards = [1, 2, 3, 4, 5].map((g) => {
       const comp = CFG.COMPONENTES[g];
       const s = resumen.porComponente[g];
       const activo = cddDrillGrupo === g;
+      const metaMin = MT.metaMinimaComponente(g);
       return `<div class="card cdd-comp-card${activo ? " active" : ""}" data-grupo="${g}" role="button" tabindex="0">
         <div class="card-head"><div>
-          <h3 style="color:${COMPONENTE_COLORS[g]}">${esc(comp.id)}</h3>
+          <h3 style="color:${COMPONENTE_COLORS[g]}">${esc(comp.id)}${metaMin != null ? ` <span class="cdd-meta" title="UP completadas / meta mínima institucional">(${fmt(s.completado)}/${fmt(metaMin)})</span>` : ""}</h3>
           <div class="sub">${esc(truncate(comp.nombre, 38))}</div>
         </div></div>
         <div class="chartbox">
-          ${triBand(s.completado, s.programado, s.pendiente)}
+          ${triBand(s.completado, s.parcial, s.pendiente + s.programado)}
           <div class="statlist" style="margin-top:12px">
             <div class="row"><span class="l"><i style="background:${CH.SEM.verde}"></i>Completado</span><span class="val">${fmt(s.completado)}</span></div>
-            <div class="row"><span class="l"><i style="background:${CH.SEM.amarillo}"></i>Programado</span><span class="val">${fmt(s.programado)}</span></div>
+            <div class="row"><span class="l"><i style="background:${COL.blue}"></i>Parcial</span><span class="val">${fmt(s.parcial)}</span></div>
             <div class="row"><span class="l"><i style="background:${COL.track}"></i>Pendiente</span><span class="val">${fmt(s.pendiente)}</span></div>
+            <!-- "Programado" oculto por ahora (no se agenda por fechas todavía);
+                 queda plegado dentro de Pendiente. Datos aún disponibles en s.programado. -->
           </div>
           <div class="muted" style="margin-top:8px;font-size:.72rem">de ${fmt(unidades.length)} UP atendidas por CdD-FEST</div>
         </div>
@@ -1184,17 +1244,29 @@
     const el = document.getElementById("tbl-cdd-general");
     if (!el) return;
     mountTable(el, {
-      title: "Unidades Productivas por componente", sub: `${resumen.matriz.length} UP · C1–C5 · ordenadas por más componentes completados`,
+      title: "Unidades Productivas por componente",
+      sub: `${resumen.matriz.length} UP · C1–C5 · ordenadas por más componentes completados · un componente solo cuenta "Completado" cuando TODAS sus actividades están ejecutadas · clic en una fila para ver el detalle por actividad`,
       searchPlaceholder: "Buscar por RUC o razón social…", searchKeys: ["ruc", "razon"],
       rows: resumen.matriz, pageSize: 15, totalLabel: " UP", search: true,
+      expandKey: "ruc",
+      renderExpand: (r) => `<div class="actgrid">${[1, 2, 3, 4, 5].map((g) => {
+        const est = r.estadoComponentes && r.estadoComponentes[g];
+        const comp = CFG.COMPONENTES[g];
+        return `<div class="actcol">
+          <div class="actcol-h" style="color:${COMPONENTE_COLORS[g]}">${esc(comp.id)}
+            <span class="muted">${fmt((est && est.completadasActividades) || 0)}/${fmt((est && est.totalActividades) || 0)}</span>
+          </div>
+          ${actividadesChecklist(est && est.actividades)}
+        </div>`;
+      }).join("")}</div>`,
       columns: [
         { label: "Unidad productiva", cls: "name", render: (r) => esc(r.razon) },
         { label: "RUC", render: (r) => esc(r.ruc) },
-        { label: "C1", cls: "ctr", render: (r) => compBadge(r.estados[1]) },
-        { label: "C2", cls: "ctr", render: (r) => compBadge(r.estados[2]) },
-        { label: "C3", cls: "ctr", render: (r) => compBadge(r.estados[3]) },
-        { label: "C4", cls: "ctr", render: (r) => compBadge(r.estados[4]) },
-        { label: "C5", cls: "ctr", render: (r) => compBadge(r.estados[5]) },
+        { label: "C1", cls: "ctr", render: (r) => compBadge(r.estadoComponentes && r.estadoComponentes[1]) },
+        { label: "C2", cls: "ctr", render: (r) => compBadge(r.estadoComponentes && r.estadoComponentes[2]) },
+        { label: "C3", cls: "ctr", render: (r) => compBadge(r.estadoComponentes && r.estadoComponentes[3]) },
+        { label: "C4", cls: "ctr", render: (r) => compBadge(r.estadoComponentes && r.estadoComponentes[4]) },
+        { label: "C5", cls: "ctr", render: (r) => compBadge(r.estadoComponentes && r.estadoComponentes[5]) },
         { label: "Completados", cls: "num strong", render: (r) => fmt(r.completados) + " / 5" },
       ],
     });
@@ -1270,23 +1342,22 @@
         const est = up.estadoComponentes[g];
         const comp = CFG.COMPONENTES[g];
         return {
-          grupo: g, id: comp.id, nombre: comp.nombre,
-          status: est.status, especialistas: est.especialistas.join(", ") || "—",
-          ultima: est.ultimaEjecutada, proxima: est.proximaProgramada,
+          grupo: g, id: comp.id, nombre: comp.nombre, estado: est,
+          especialistas: est.especialistas.join(", ") || "—",
+          ultima: est.ultimaEjecutada, proxima: est.proximaProgramada, actividades: est.actividades,
         };
       });
       mountTable(el, {
-        title: "Estado de avance por componente", sub: "C1 a C5 · Unidad Productiva seleccionada",
+        title: "Estado de avance por componente",
+        sub: "C1 a C5 · un componente solo cuenta como Completado cuando TODAS sus actividades están ejecutadas",
         search: false, rows, pageSize: 5,
         columns: [
           { label: "Componente", cls: "name", render: (r) => `<span style="color:${COMPONENTE_COLORS[r.grupo]};font-weight:700">${esc(r.id)}</span> · ${esc(r.nombre)}` },
-          {
-            label: "Estado", cls: "ctr", render: (r) => r.status === "completado" ? `<span class="badge green"><i></i>Completado</span>`
-              : r.status === "programado" ? `<span class="badge amber"><i></i>Programado</span>` : `<span class="badge neutral"><i></i>Pendiente</span>`
-          },
-          { label: "Especialista(s)", render: (r) => esc(r.especialistas) },
+          { label: "Estado", cls: "ctr", render: (r) => compBadge(r.estado) },
+          { label: "Actividades", render: (r) => actividadesChecklist(r.actividades) },
+          //{ label: "Especialista(s)", render: (r) => esc(r.especialistas) },
           { label: "Última ejecutada", render: (r) => r.ultima ? r.ultima.toLocaleDateString("es-PE") : "—" },
-          { label: "Próxima programada", render: (r) => r.proxima ? r.proxima.toLocaleDateString("es-PE") : "—" },
+          //{ label: "Próxima programada", render: (r) => r.proxima ? r.proxima.toLocaleDateString("es-PE") : "—" },
         ],
       });
     }
