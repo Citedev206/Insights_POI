@@ -305,11 +305,160 @@
     });
   }
 
+  // ---------------------------------------------------------------------------
+  // CdD-FEST: planificador por Unidad Productiva (UP)
+  // Componente = floor(código decimal), p. ej. 3.4 -> grupo 3 (C3).
+  // ---------------------------------------------------------------------------
+  function componenteGrupo(codigoDecimal) {
+    const n = Number(codigoDecimal);
+    return codigoDecimal == null || isNaN(n) ? null : Math.floor(n);
+  }
+
+  // Brechas por dimensión ICE para una fila de results_ice.xlsx (o [] si no
+  // hay diagnóstico). Adapta el shape guardado en data.js a un arreglo
+  // estable en el orden de CFG.ICE_DIM (útil para el radar).
+  function iceBrechas(iceRow) {
+    if (!iceRow || !iceRow.DIMS) return [];
+    return CFG.ICE_DIM.map((dim) => {
+      const d = iceRow.DIMS[dim.key] || {};
+      return {
+        key: dim.key, label: dim.label, componente: dim.componente,
+        puntaje: d.puntaje != null ? d.puntaje : 0,
+        nivel: d.nivel || null, esProxy: !!d.esProxy,
+        brecha: d.brecha != null ? d.brecha : 100,
+      };
+    });
+  }
+
+  // Orden recomendado de intervención: C1 siempre primero (es la línea base:
+  // el propio diagnóstico), luego C2-C5 ordenados por brecha promedio
+  // descendente (mayor brecha = mayor prioridad). Cruza con el estado real
+  // de ejecución/programación si se provee `estadoComponentes` (de
+  // cddFestUnidades) para mostrar recomendación vs. avance real.
+  function ordenRecomendado(iceRow, estadoComponentes) {
+    const dims = iceBrechas(iceRow);
+    const porComponente = new Map();
+    for (const d of dims) {
+      if (d.componente == null) continue;
+      if (!porComponente.has(d.componente)) porComponente.set(d.componente, []);
+      porComponente.get(d.componente).push(d.brecha);
+    }
+    const estadoDe = (g) => (estadoComponentes && estadoComponentes[g] && estadoComponentes[g].status) || "pendiente";
+    const orden = [{
+      grupo: 1, id: "C1", brecha: null,
+      estado: estadoComponentes ? estadoDe(1) : (iceRow ? "completado" : "pendiente"),
+    }];
+    const resto = [2, 3, 4, 5].map((g) => {
+      const brechas = porComponente.get(g) || [];
+      const brechaProm = brechas.length ? brechas.reduce((a, b) => a + b, 0) / brechas.length : 0;
+      return { grupo: g, id: "C" + g, brecha: round1(brechaProm), estado: estadoDe(g) };
+    });
+    resto.sort((a, b) => b.brecha - a.brecha);
+    return orden.concat(resto);
+  }
+
+  // Agrupa ejecución + programado de CdD-FEST por Unidad Productiva (RUC),
+  // cruzando con el diagnóstico ICE cuando exista. Cada UP trae su lista de
+  // eventos (ejecutados y programados) y el estado (completado / programado
+  // / pendiente) de cada componente C1-C5.
+  //
+  // Solo se consideran "atendidas por CdD-FEST" las UP que tienen el
+  // componente C1 (1.1 · Medición del Índice de Competitividad) REALMENTE
+  // EJECUTADO en ejecucion.xlsx. Tener una fila en results_ice.xlsx no basta
+  // por sí sola (puede existir un diagnóstico externo sin visita real del
+  // programa) — por eso ya no se incluyen UP solo por aparecer en el ICE.
+  function cddFestUnidades(eje, programado, iceRows) {
+    const ejeCdd = (eje || []).filter((r) => r[X.PROGRAMA] === "CdD-FEST");
+    const progCdd = (programado || []).filter((r) => r.PROGRAMA === "CdD-FEST");
+    const iceByRuc = new Map((iceRows || []).map((r) => [r.RUC, r]));
+
+    const porRuc = new Map();
+    function ensure(ruc, razon) {
+      if (!porRuc.has(ruc)) porRuc.set(ruc, {
+        ruc, razon: razon || null, ice: iceByRuc.get(ruc) || null, eventos: [],
+      });
+      const o = porRuc.get(ruc);
+      if (!o.razon && razon) o.razon = razon;
+      return o;
+    }
+
+    for (const r of ejeCdd) {
+      const ruc = r[X.RUC];
+      if (!ruc) continue;
+      const o = ensure(ruc, r[X.RAZON]);
+      o.eventos.push({
+        fecha: r[X.FECHA] instanceof Date && !isNaN(r[X.FECHA]) ? r[X.FECHA] : null,
+        ejecutado: true,
+        componenteCodigo: r[X.COMPONENTE] != null ? r[X.COMPONENTE] : null,
+        componenteGrupo: componenteGrupo(r[X.COMPONENTE]),
+        especialista: r[X.ESPECIALISTA] || null,
+        tema: r[X.TEMA] || null,
+        tipoServicio: r[X.SERVICIO] || null,
+        tipoTarea: r[X.TAREA] || null,
+        cantidad: Number(r[X.CANTIDAD]) || 0,
+      });
+    }
+    for (const r of progCdd) {
+      const ruc = r.RUC;
+      if (!ruc) continue;
+      const o = ensure(ruc, null);
+      o.eventos.push({
+        fecha: r.FECHA instanceof Date && !isNaN(r.FECHA) ? r.FECHA : null,
+        ejecutado: false,
+        componenteCodigo: r.COMPONENTE != null ? r.COMPONENTE : null,
+        componenteGrupo: componenteGrupo(r.COMPONENTE),
+        especialista: r.ESPECIALISTA || null,
+        tema: null,
+        tipoServicio: r.TIPO_SERVICIO || null,
+        tipoTarea: r.TIPO_TAREA || null,
+        cantidad: Number(r.META_CANTIDAD) || 0,
+      });
+    }
+    for (const o of porRuc.values()) {
+      o.eventos.sort((a, b) => (a.fecha ? a.fecha.getTime() : 0) - (b.fecha ? b.fecha.getTime() : 0));
+      const estado = {};
+      for (let g = 1; g <= 5; g++) {
+        const ejEvts = o.eventos.filter((e) => e.ejecutado && e.componenteGrupo === g);
+        const prEvts = o.eventos.filter((e) => !e.ejecutado && e.componenteGrupo === g);
+        let status = "pendiente";
+        if (ejEvts.length) status = "completado";
+        else if (prEvts.length) status = "programado";
+        const especialistas = Array.from(new Set([...ejEvts, ...prEvts]
+          .map((e) => e.especialista).filter(Boolean)));
+        const fechasEj = ejEvts.map((e) => e.fecha).filter(Boolean);
+        const fechasPr = prEvts.map((e) => e.fecha).filter(Boolean);
+        estado[g] = {
+          grupo: g, status, especialistas,
+          ultimaEjecutada: fechasEj.length ? new Date(Math.max(...fechasEj.map((d) => d.getTime()))) : null,
+          proximaProgramada: fechasPr.length ? new Date(Math.min(...fechasPr.map((d) => d.getTime()))) : null,
+        };
+      }
+      o.estadoComponentes = estado;
+    }
+    return Array.from(porRuc.values())
+      .filter((o) => o.estadoComponentes[1].status === "completado")
+      .sort((a, b) => String(a.razon || a.ruc).localeCompare(String(b.razon || b.ruc), "es"));
+  }
+
+  // Regla informativa de duración esperada por tipo de actividad (no
+  // reprograma fechas, solo etiqueta): asistencia técnica ≥ 7h, diseño 3-4h.
+  const RE_MARCAS_COMBINANTES = new RegExp("[\\u0300-\\u036f]", "g");
+  function normTexto(s) {
+    return String(s || "").toLowerCase().normalize("NFD").replace(RE_MARCAS_COMBINANTES, "");
+  }
+  function reglaDuracion(tipoServicio, tipoTarea) {
+    const t = normTexto(tipoServicio) + " " + normTexto(tipoTarea);
+    if (t.includes("asistencia tecnica")) return { min: 7, max: null, label: "≥ 7 h (asistencia técnica)" };
+    if (t.includes("diseno")) return { min: 3, max: 4, label: "3–4 h (diseño y desarrollo)" };
+    return null;
+  }
+
   global.POI.metrics = {
     pct, kpis, metaVsEjec, tendenciaMensual, rankingEspecialistas,
     complejidadResumen, heatmapCumplimiento, clientesResumen,
     clientesNuevosPorMes, kpisClientes, clientesMetaPorMes,
     clientesMetaEspecialistas,
+    componenteGrupo, iceBrechas, ordenRecomendado, cddFestUnidades, reglaDuracion,
     sumBy, uniqueCountBy, nunique, sumCol,
   };
 })(window);

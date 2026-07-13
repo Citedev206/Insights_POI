@@ -21,6 +21,7 @@
       clientes:    "data/clientes.xlsx",
       bd:          "data/bd.xlsx",
       programado:  "data/programado.xlsx",
+      results_ice: "data/results_ice.xlsx",
     },
     // Ejecución
     X: {
@@ -28,7 +29,7 @@
       PROGRAMA: "PROGRAMA", ESPECIALISTA: "ESPECIALISTA", RUC: "RUC",
       RAZON: "RAZON_SOCIAL", SERVICIO: "TIPO_SERVICIO", TAREA: "TIPO_TAREA",
       COMPLEJIDAD: "COMPLEJIDAD", CANTIDAD: "CANTIDAD", FUENTE: "FUENTE",
-      TEMA: "TEMA_ABORDADO",
+      TEMA: "TEMA_ABORDADO", COMPONENTE: "COMPONENTE",
     },
     // Metas
     M: {
@@ -48,6 +49,63 @@
     MESES_NOMBRE: { 1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo",
                     6: "Junio", 7: "Julio", 8: "Agosto", 9: "Setiembre",
                     10: "Octubre", 11: "Noviembre", 12: "Diciembre" },
+
+    // ---- CdD-FEST: catálogo de componentes -------------------------------
+    // El código decimal de ESPECIALISTA/COMPONENTE (1.1, 3.4, 4.2, …) usa
+    // como parte entera el grupo de componente (floor(codigo) => 1..5).
+    COMPONENTES: {
+      1: { id: "C1", nombre: "Índice de Competitividad",
+           objetivo: "Establecer la línea base de 100 UP mediante un diagnóstico competitivo integral." },
+      2: { id: "C2", nombre: "Gestión Empresarial",
+           objetivo: "Fortalecer capacidades empresariales para la implementación de modelos de negocio y gestión financiera." },
+      3: { id: "C3", nombre: "Mejora de procesos productivos y estandarización de la calidad",
+           objetivo: "Mejorar procesos productivos para el desarrollo de prototipos con estándares de calidad." },
+      4: { id: "C4", nombre: "Digitalización y Packaging",
+           objetivo: "Posicionar a las UP en canales digitales." },
+      5: { id: "C5", nombre: "Comercio Exterior",
+           objetivo: "Preparar a las UP para exportar y facilitar operaciones internacionales." },
+    },
+
+    // ---- CdD-FEST: dimensiones del ICE (results_ice.xlsx) -----------------
+    // `componente` liga la dimensión a un componente C2-C5 para el cálculo de
+    // brechas y el orden recomendado (C1 es la línea base: el propio
+    // diagnóstico). Sostenibilidad y Ecosistema quedan sin componente: se
+    // muestran en el radar como contexto, pero no priorizan por sí solas.
+    ICE_DIM: [
+      { key: "PRODUCTIVA", label: "Gestión Productiva",
+        puntajePatterns: ["gestion productiva puntaje", "gestion productiva (puntaje)"],
+        nivelPatterns: ["gestion productiva nivel", "gestion productiva (nivel)"],
+        componente: 3, proxy: true },
+      { key: "ORGANIZACIONAL", label: "Gestión Organizacional",
+        puntajePatterns: ["gestion organizacional puntaje", "gestion organizacional (puntaje)"],
+        nivelPatterns: ["gestion organizacional nivel", "gestion organizacional (nivel)"],
+        componente: 2 },
+      { key: "FINANCIERA", label: "Gestión Financiera y Tributaria",
+        puntajePatterns: ["gestion financiera y tributaria puntaje", "gestion financiera y tributaria (puntaje)"],
+        nivelPatterns: ["gestion financiera y tributaria nivel", "gestion financiera y tributaria (nivel)"],
+        componente: 2 },
+      { key: "COMERCIO", label: "Comercio Exterior",
+        puntajePatterns: ["comercio exterior puntaje", "comercio exterior (puntaje)"],
+        nivelPatterns: ["comercio exterior nivel", "comercio exterior (nivel)"],
+        componente: 5 },
+      { key: "MARKETING", label: "Marketing",
+        puntajePatterns: ["marketing puntaje", "marketing (puntaje)"],
+        nivelPatterns: ["marketing nivel", "marketing (nivel)"],
+        componente: 4 },
+      { key: "TECNOLOGIA", label: "Tecnología e Innovación",
+        puntajePatterns: ["tecnologia e innovacion puntaje", "tecnologia e innovacion (puntaje)"],
+        nivelPatterns: ["tecnologia e innovacion nivel", "tecnologia e innovacion (nivel)"],
+        componente: 4 },
+      { key: "SOSTENIBILIDAD", label: "Sostenibilidad",
+        puntajePatterns: ["sostenibilidad puntaje", "sostenibilidad (puntaje)"],
+        nivelPatterns: ["sostenibilidad nivel", "sostenibilidad (nivel)"],
+        componente: null },
+      { key: "ECOSISTEMA", label: "Ecosistema de Influencia / Entorno",
+        puntajePatterns: ["ecosistema de influencia", "ecosistema de influencia / entorno puntaje", "entorno puntaje"],
+        nivelPatterns: ["ecosistema de influencia nivel", "ecosistema de influencia / entorno nivel", "entorno nivel"],
+        componente: null },
+    ],
+    NIVEL_PROXY: { bajo: 25, medio: 55, alto: 85 },
   };
 
   function semaforo(pct) {
@@ -106,6 +164,29 @@
       for (const k in row) out[String(k).trim().toUpperCase()] = row[k];
       return out;
     });
+  }
+
+  // Normaliza una clave de columna para comparar sin acentos/paréntesis/caja
+  // (p. ej. "Gestión Productiva (Puntaje)" y "gestion productiva puntaje"
+  // deben considerarse la misma columna).
+  const RE_COMBINING_MARKS = new RegExp("[\\u0300-\\u036f]", "g");
+  function normKey(s) {
+    return String(s == null ? "" : s)
+      .toUpperCase()
+      .normalize("NFD").replace(RE_COMBINING_MARKS, "")
+      .replace(/[^A-Z0-9]+/g, " ")
+      .trim();
+  }
+  // Busca en `row` la clave real que corresponde a alguno de los `patterns`
+  // (tolerante a acentos, mayúsculas y paréntesis). Devuelve la clave o null.
+  function findCol(row, patterns) {
+    const keys = Object.keys(row).map((k) => ({ k, n: normKey(k) }));
+    for (const p of patterns) {
+      const np = normKey(p);
+      const hit = keys.find((x) => x.n === np) || keys.find((x) => x.n.includes(np));
+      if (hit) return hit.k;
+    }
+    return null;
   }
 
   // -------------------------------------------------------------------------
@@ -235,8 +316,56 @@
           META_CANTIDAD: toNum(r.META_CANTIDAD),
           META_FOCALIZADOS: toNum(r.META_FOCALIZADOS),
           PUNTO: punto != null ? String(punto).trim() : "(sin punto)",
+          // CdD-FEST (planificador por Unidad Productiva): opcionales, se
+          // agregan a programado.xlsx para vincular cada fecha programada
+          // con su UP y su componente (mismo código decimal que ejecucion.xlsx).
+          RUC: r.RUC != null ? normRuc(r.RUC) : "",
+          COMPONENTE: r.COMPONENTE != null && r.COMPONENTE !== "" ? toNum(r.COMPONENTE) : null,
         };
       });
+    }
+
+    // Results ICE (opcional): diagnóstico de competitividad por Unidad
+    // Productiva (CdD-FEST). Columnas reales: RUC, DNI, Razón Social,
+    // ICE Global, y por cada dimensión un par (Puntaje)/(Nivel) — salvo
+    // "Gestión Productiva", que en la fuente solo trae (Nivel). Para esa
+    // dimensión se estima un puntaje proxy desde el Nivel (marcado luego en
+    // la UI con "≈").
+    let iceRows = await readSheetOptional(CFG.FILES.results_ice);
+    let resultsIce = [];
+    if (iceRows && iceRows.length) {
+      const sample = iceRows[0];
+      const colRuc = findCol(sample, ["ruc"]);
+      const colDni = findCol(sample, ["dni"]);
+      const colRazon = findCol(sample, ["razon social"]);
+      const colGlobal = findCol(sample, ["ice global"]);
+      resultsIce = iceRows.map((r) => {
+        const dims = {};
+        for (const dim of CFG.ICE_DIM) {
+          const colP = findCol(r, dim.puntajePatterns);
+          const colN = findCol(r, dim.nivelPatterns);
+          const nivel = colN ? String(r[colN] == null ? "" : r[colN]).trim() : "";
+          let puntaje = colP ? toNum(r[colP]) : null;
+          let esProxy = false;
+          if (puntaje === null || (colP == null)) {
+            puntaje = CFG.NIVEL_PROXY[nivel.toLowerCase()] != null
+              ? CFG.NIVEL_PROXY[nivel.toLowerCase()] : null;
+            esProxy = true;
+          }
+          dims[dim.key] = {
+            label: dim.label, componente: dim.componente,
+            puntaje, nivel: nivel || null, esProxy,
+            brecha: puntaje != null ? Math.max(0, 100 - puntaje) : null,
+          };
+        }
+        return {
+          RUC: normRuc(colRuc ? r[colRuc] : ""),
+          DNI: colDni ? r[colDni] : null,
+          RAZON_SOCIAL: colRazon ? r[colRazon] : null,
+          ICE_GLOBAL: colGlobal ? toNum(r[colGlobal]) : null,
+          DIMS: dims,
+        };
+      }).filter((r) => r.RUC);
     }
 
     // Validación mínima de estructura (mensaje claro en pantalla)
@@ -255,7 +384,7 @@
       throw err;
     }
 
-    return { ejecucion: eje, metas: met, focalizados: focRows || [], clientes: cli, bd, programado };
+    return { ejecucion: eje, metas: met, focalizados: focRows || [], clientes: cli, bd, programado, resultsIce };
   }
 
   // -------------------------------------------------------------------------
@@ -307,6 +436,12 @@
     return p;
   }
 
+  // Fila de results_ice.xlsx para un RUC dado (o null si no hay diagnóstico).
+  function iceByRuc(data, ruc) {
+    const rows = data.resultsIce || [];
+    return rows.find((r) => r.RUC === ruc) || null;
+  }
+
   // Valores únicos ordenados de una columna sobre uno o más datasets
   function opcionesUnicas(datasets, col) {
     const set = new Set();
@@ -322,6 +457,6 @@
   global.POI.semaforo = semaforo;
   global.POI.data = {
     loadAll, aplicar, filtrar, filtrarClientes, filtrarProgramado, opcionesUnicas,
-    normRuc, toNum, toInt, normComplejidad,
+    iceByRuc, normRuc, toNum, toInt, normComplejidad,
   };
 })(window);

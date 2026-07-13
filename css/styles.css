@@ -318,6 +318,27 @@ select.pick{ font-family:inherit; font-size:.85rem; color:var(--ink); background
   border:1px solid #EAE3EE; border-radius:9px; padding:8px 12px; cursor:pointer; min-width:240px; }
 select.pick:focus{ outline:none; border-color:var(--purple); }
 
+/* Buscador con lista (combobox): reemplaza los <select> largos de
+   "Ver empresa" / "Ver unidad productiva" — busca por nombre o por RUC. */
+.searchsel{ position:relative; min-width:320px; flex:0 1 380px; }
+.searchsel-ico{ position:absolute; left:12px; top:50%; transform:translateY(-50%);
+  width:15px; height:15px; stroke:var(--muted2); pointer-events:none; }
+.searchsel-input{ width:100%; font-family:inherit; font-size:.85rem; color:var(--ink);
+  background:#fff; border:1px solid #EAE3EE; border-radius:9px; padding:9px 12px 9px 34px; }
+.searchsel-input:focus{ outline:none; border-color:var(--purple); }
+.searchsel-input::placeholder{ color:var(--muted2); }
+.searchsel-menu{ position:absolute; top:calc(100% + 6px); left:0; right:0; max-height:320px;
+  overflow-y:auto; background:#fff; border:1px solid var(--border); border-radius:12px;
+  box-shadow:var(--shadow-lg); padding:6px; z-index:50; display:none; }
+.searchsel-menu.open{ display:block; }
+.searchsel-opt{ display:flex; align-items:baseline; gap:8px; padding:8px 10px; border-radius:8px;
+  font-size:.82rem; color:var(--text); cursor:pointer; }
+.searchsel-opt:hover{ background:var(--purple-tint); }
+.searchsel-opt .n{ flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.searchsel-opt .s{ font-size:.72rem; color:var(--muted2); font-variant-numeric:tabular-nums; flex:0 0 auto; }
+.searchsel-opt.disabled{ color:var(--muted2); cursor:default; }
+.searchsel-opt.disabled:hover{ background:transparent; }
+
 /* ============================================================
    ESTADOS: carga / error / vacío
    ============================================================ */
@@ -421,6 +442,45 @@ select.pick:focus{ outline:none; border-color:var(--purple); }
   color:var(--muted); padding:7px 16px; border-radius:8px; cursor:pointer; transition:background .15s, color .15s; }
 .seg:hover{ color:var(--purple); }
 .seg.active{ background:#fff; color:var(--purple); box-shadow:var(--shadow-sm); }
+
+/* Día "solo programado" (aún no ejecutado): trama diagonal sobre el color
+   del componente, para distinguirlo visualmente de un día ya ejecutado. */
+.cal-day.prog{
+  background-image:repeating-linear-gradient(135deg, rgba(255,255,255,.55) 0 3px, rgba(255,255,255,0) 3px 7px);
+}
+.hatch-swatch{
+  background-image:repeating-linear-gradient(135deg, rgba(255,255,255,.6) 0 2px, rgba(0,0,0,0) 2px 4px);
+}
+
+/* ============================================================
+   CdD-FEST · orden recomendado de intervención (lista rankeada)
+   ============================================================ */
+.orden-list{ display:flex; flex-direction:column; gap:10px; }
+.orden-row{ display:flex; align-items:center; gap:12px; padding:9px 4px;
+  border-bottom:1px solid var(--border-soft); }
+.orden-row:last-child{ border-bottom:none; }
+.orden-pos{ flex:0 0 22px; height:22px; border-radius:50%; background:var(--track);
+  color:var(--text2); font-size:.7rem; font-weight:700; display:grid; place-items:center; }
+.orden-dot{ flex:0 0 11px; width:11px; height:11px; border-radius:3px; }
+.orden-body{ flex:1; min-width:0; }
+.orden-name{ font-size:.84rem; font-weight:600; color:var(--ink); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.orden-sub{ font-size:.74rem; color:var(--muted); margin-top:1px; }
+
+/* ============================================================
+   CdD-FEST · línea de tiempo del proceso de fortalecimiento
+   ============================================================ */
+.tl-list{ display:flex; flex-direction:column; gap:2px; max-height:520px; overflow-y:auto; }
+.tl-row{ display:flex; gap:12px; padding:12px 6px; border-bottom:1px solid var(--border-soft);
+  border-radius:8px; transition:background .15s ease; }
+.tl-row:last-child{ border-bottom:none; }
+.tl-row.sel{ background:var(--purple-tint); }
+.tl-dot{ flex:0 0 10px; width:10px; height:10px; border-radius:50%; margin-top:5px; }
+.tl-body{ flex:1; min-width:0; }
+.tl-top{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:3px; }
+.tl-fecha{ font-size:.8rem; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; }
+.tl-comp{ font-size:.78rem; font-weight:600; margin-bottom:2px; }
+.tl-meta{ font-size:.78rem; color:var(--text2); }
 
 /* ============================================================
    HEATMAP (tarea × mes)

@@ -279,9 +279,61 @@
     return `<div class="hm-scroll"><div class="heatmap" style="--hm-cols:${hm.meses.length}">${head}${body}</div></div>`;
   }
 
+  // -------------------------------------------------------------------------
+  // Radar ICE: spider chart puro SVG para las dimensiones de diagnóstico de
+  // competitividad (CdD-FEST). dims: [{label,puntaje,nivel,esProxy,brecha,
+  // componente}]. opts.highlightComponente resalta el eje del componente
+  // recomendado (según el orden por brechas).
+  // -------------------------------------------------------------------------
+  function iceColor(p) {
+    if (p >= 70) return SEM.verde;
+    if (p >= 40) return SEM.amarillo;
+    return SEM.rojo;
+  }
+  function radar(dims, opts) {
+    opts = opts || {};
+    if (!dims || !dims.length) return empty("Sin diagnóstico ICE para esta unidad productiva");
+    const N = dims.length;
+    const W = 340, H = 340, cx = W / 2, cy = H / 2 - 6, R = 104;
+    const angleAt = (i) => -Math.PI / 2 + i * (2 * Math.PI / N);
+    const pt = (i, frac) => {
+      const a = angleAt(i), r = R * frac;
+      return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+    };
+    const rings = [0.25, 0.5, 0.75, 1].map((frac) => {
+      const p = dims.map((_, i) => pt(i, frac).map((v) => v.toFixed(1)).join(","));
+      return `<polygon points="${p.join(" ")}" fill="none" stroke="${COL.grid}" stroke-width="1"/>`;
+    }).join("");
+    const axes = dims.map((_, i) => {
+      const [x, y] = pt(i, 1);
+      return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" stroke="${COL.axis}" stroke-width="1"/>`;
+    }).join("");
+    const dataPts = dims.map((d, i) => pt(i, Math.max(0, Math.min(d.puntaje, 100)) / 100));
+    const dataPoly = `<polygon points="${dataPts.map((p) => p.map((v) => v.toFixed(1)).join(",")).join(" ")}"
+      fill="${COL.accent}" fill-opacity="0.22" stroke="${COL.accent}" stroke-width="2.2" stroke-linejoin="round"/>`;
+    const dots = dataPts.map((p, i) => {
+      const d = dims[i];
+      const tip = `${d.label}: ${fmt1(d.puntaje)}${d.esProxy ? " (≈ estimado desde nivel)" : ""}` +
+        `${d.nivel ? " · " + d.nivel : ""} · brecha ${fmt1(d.brecha)}`;
+      return `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.6" fill="${iceColor(d.puntaje)}" stroke="#fff" stroke-width="1.2"><title>${esc(tip)}</title></circle>`;
+    }).join("");
+    const labels = dims.map((d, i) => {
+      const [x, y] = pt(i, 1.24);
+      const a = angleAt(i);
+      const anchor = Math.cos(a) > 0.25 ? "start" : Math.cos(a) < -0.25 ? "end" : "middle";
+      const hl = opts.highlightComponente && d.componente === opts.highlightComponente;
+      return `
+        <text x="${x.toFixed(1)}" y="${y.toFixed(1)}" text-anchor="${anchor}" font-size="10.2"
+              font-weight="${hl ? 700 : 500}" fill="${hl ? COL.purple : COL.text}">${esc(truncate(d.label, 15))}${d.esProxy ? " ≈" : ""}</text>
+        <text x="${x.toFixed(1)}" y="${(y + 12).toFixed(1)}" text-anchor="${anchor}" font-size="10.5"
+              font-weight="700" fill="${iceColor(d.puntaje)}">${Math.round(d.puntaje)}</text>`;
+    }).join("");
+    return `<svg viewBox="0 0 ${W} ${H}" style="max-width:340px;margin:0 auto;display:block;overflow:visible;">${rings}${axes}${dataPoly}${dots}${labels}</svg>`;
+  }
+
   global.POI.charts = {
     COL, SEM, semColor, fmt, fmt1, esc, truncate, empty,
     trendMetaEjec, barsMetaEjec, barsSemaforo, barsSimple, barsVertical,
-    multiLine, donut, legendList, gaugeRing, heatmap,
+    multiLine, donut, legendList, gaugeRing, heatmap, radar, iceColor,
   };
 })(window);

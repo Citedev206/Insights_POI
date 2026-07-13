@@ -19,6 +19,7 @@
   let espSel = null;               // drill-down de la vista Especialistas
   let cliSel = null;               // empresa seleccionada en el Calendario
   let calMode = "empresa";         // modo del calendario: "empresa" | "intervencion"
+  let cddSel = null;               // Unidad Productiva seleccionada en CdD-FEST
   let lastExport = null;           // datos exportables de la vista activa
 
   // ---- iconografía ----------------------------------------------------------
@@ -38,6 +39,7 @@
     repeat: '<path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
     calendar: '<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
     clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    compass: '<circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/>',
   };
   const svgIco = (path) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
 
@@ -48,6 +50,7 @@
     { id: "clientes", ico: I.building, label: "Clientes", sub: "Nuevos · reenganchados · focalizados" },
     { id: "servicios", ico: I.puzzle, label: "Servicios", sub: "Estructura y cumplimiento de servicios" },
     { id: "calendario", ico: I.calendar, label: "Calendario de atención", sub: "Días de atención por empresa · calendario mensual" },
+    { id: "cddfest", ico: I.compass, label: "CdD-FEST", sub: "Radar ICE · orden recomendado · línea de tiempo por componente" },
   ];
 
   const PROG_COLORS = [COL.accent, COL.blue, COL.mid, COL.purple, COL.soft, "#C77DC7", "#5FA0E0"];
@@ -55,6 +58,9 @@
   // Paleta categórica para los puntos de intervención (calendario programado)
   const PUNTO_COLORS = ["#7A2A7A", "#2E5FD4", "#1F9D6B", "#E0A82E", "#C0392B", "#9B4D9B",
     "#0FA3A3", "#D2691E", "#5FA0E0", "#C77DC7", "#6B8E23", "#B0338A", "#3D7A5C", "#8A5A2B"];
+  // Paleta fija por componente C1-C5 (CdD-FEST): C1 línea base, C2 azul,
+  // C3 morado institucional, C4 ámbar, C5 verde (crecimiento/exportación).
+  const COMPONENTE_COLORS = { 1: "#0B1B33", 2: COL.blue, 3: COL.purple, 4: "#E0A82E", 5: CH.SEM.verde };
 
   // ---- helpers de estado semáforo ------------------------------------------
   const estadoTxt = { verde: "En meta", amarillo: "En proceso", rojo: "En riesgo" };
@@ -155,6 +161,47 @@
   function statusBadge(pct) {
     const s = global.POI.semaforo(pct);
     return `<span class="badge ${estadoTone[s]}"><i></i>${estadoTxt[s]}</span>`;
+  }
+
+  // Buscador con lista (combobox): un input de texto + menú filtrable, en
+  // lugar de un <select> largo. Busca por nombre O por RUC a la vez.
+  // items: [{value, label, sub}]. `onPick(value)` se llama al elegir uno.
+  function searchSelectHtml(id, items, selectedValue, placeholder) {
+    const sel = items.find((it) => it.value === selectedValue);
+    return `<div class="searchsel" id="${id}">
+      <svg class="searchsel-ico" viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input type="text" class="searchsel-input" autocomplete="off" placeholder="${esc(placeholder || "Buscar…")}"
+             value="${esc(sel ? sel.label : "")}" data-value="${esc(selectedValue || "")}">
+      <div class="searchsel-menu"></div>
+    </div>`;
+  }
+  function wireSearchSelect(id, items, onPick) {
+    const root = document.getElementById(id);
+    if (!root) return;
+    const input = root.querySelector(".searchsel-input");
+    const menu = root.querySelector(".searchsel-menu");
+    function renderMenu(text) {
+      const t = (text || "").trim().toLowerCase();
+      const filtered = !t ? items : items.filter((it) =>
+        it.label.toLowerCase().includes(t) || (it.sub || "").toLowerCase().includes(t));
+      const shown = filtered.slice(0, 60);
+      menu.innerHTML = shown.length
+        ? shown.map((it) => `<div class="searchsel-opt" data-value="${esc(it.value)}">
+            <span class="n">${esc(it.label)}</span>${it.sub ? `<span class="s">${esc(it.sub)}</span>` : ""}</div>`).join("")
+        : `<div class="searchsel-opt disabled">Sin resultados</div>`;
+      menu.querySelectorAll(".searchsel-opt[data-value]").forEach((el) =>
+        el.addEventListener("mousedown", (e) => {
+          e.preventDefault(); // evita el blur antes del click
+          const it = items.find((x) => x.value === el.dataset.value);
+          input.value = it ? it.label : ""; input.dataset.value = el.dataset.value;
+          menu.classList.remove("open");
+          onPick(el.dataset.value);
+        }));
+    }
+    input.addEventListener("focus", () => { renderMenu(""); menu.classList.add("open"); input.select(); });
+    input.addEventListener("input", () => { renderMenu(input.value); menu.classList.add("open"); });
+    input.addEventListener("keydown", (e) => { if (e.key === "Escape") { input.blur(); menu.classList.remove("open"); } });
+    input.addEventListener("blur", () => { setTimeout(() => menu.classList.remove("open"), 120); });
   }
 
   // =========================================================================
@@ -653,8 +700,8 @@
     const emp = byRuc.get(cliSel);
 
     const selector = `<div class="selectrow"><label>Ver empresa</label>
-      <select class="pick" id="cli-pick" style="min-width:340px">${empresas.map((e) =>
-      `<option value="${esc(e.ruc)}" ${e.ruc === cliSel ? "selected" : ""}>${esc(e.razon || e.ruc)} — ${esc(e.ruc)}</option>`).join("")}</select></div>`;
+      ${searchSelectHtml("cli-pick", empresas.map((e) => ({ value: e.ruc, label: e.razon || e.ruc, sub: e.ruc })),
+      cliSel, "Buscar por RUC o razón social…")}</div>`;
 
     if (!emp.dates.length) {
       return `${sectionHead("Calendario de atención", emp.razon || emp.ruc)}${selector}
@@ -848,8 +895,16 @@
     if (tabs) tabs.querySelectorAll(".seg").forEach((b) =>
       b.addEventListener("click", () => { if (calMode !== b.dataset.mode) { calMode = b.dataset.mode; renderView(); } }));
 
-    const pick = document.getElementById("cli-pick");
-    if (pick) pick.addEventListener("change", (e) => { cliSel = e.target.value; renderView(); });
+    if (calMode === "empresa" && document.getElementById("cli-pick")) {
+      const { eje } = currentData();
+      const byRuc = new Map();
+      eje.forEach((r) => {
+        const ruc = r[CFG.X.RUC];
+        if (!byRuc.has(ruc)) byRuc.set(ruc, { ruc, razon: r[CFG.X.RAZON] });
+      });
+      const items = Array.from(byRuc.values()).map((e) => ({ value: e.ruc, label: e.razon || e.ruc, sub: e.ruc }));
+      wireSearchSelect("cli-pick", items, (v) => { cliSel = v; renderView(); });
+    }
 
     if (calMode === "intervencion") {
       const prog = D.filtrarProgramado(STORE, FILTER).filter((r) => r.FECHA instanceof Date && !isNaN(r.FECHA));
@@ -868,6 +923,217 @@
     }
   }
 
+  // ---- CdD-FEST: planificador por Unidad Productiva ------------------------
+  // Ignora los filtros globales (programa/mes/especialista): tiene su propio
+  // selector de UP y siempre muestra la línea de tiempo completa, igual que
+  // "Especialistas" tiene su propio picker independiente del filtro global.
+  function viewCddFest() {
+    const unidades = MT.cddFestUnidades(STORE.ejecucion, STORE.programado, STORE.resultsIce);
+    if (!unidades.length)
+      return noData("Aún no hay Unidades Productivas atendidas por CdD-FEST (ninguna con el componente 1.1 · Índice de Competitividad ejecutado).");
+    if (!cddSel || !unidades.some((u) => u.ruc === cddSel)) cddSel = unidades[0].ruc;
+    const up = unidades.find((u) => u.ruc === cddSel);
+
+    const selector = `<div class="selectrow"><label>Ver unidad productiva</label>
+      ${searchSelectHtml("cdd-pick", unidades.map((u) => ({ value: u.ruc, label: u.razon || u.ruc, sub: u.ruc })),
+      cddSel, "Buscar por RUC o razón social…")}</div>`;
+
+    if (!up.ice) {
+      return `${sectionHead("CdD-FEST · Planificador", up.razon || up.ruc)}
+        ${selector}
+        <div class="empty" style="min-height:220px">Diagnóstico ICE pendiente — realizar C1 (Índice de Competitividad) antes de continuar.</div>`;
+    }
+
+    const orden = MT.ordenRecomendado(up.ice, up.estadoComponentes);
+    const topPend = orden.find((o) => o.grupo !== 1 && o.estado !== "completado");
+    const dims = MT.iceBrechas(up.ice);
+    const completados = [1, 2, 3, 4, 5].filter((g) => up.estadoComponentes[g].status === "completado").length;
+    const ejecutadas = up.eventos.filter((e) => e.ejecutado).length;
+    const programadas = up.eventos.length - ejecutadas;
+
+    lastExport = {
+      filename: `cddfest_${up.ruc}.csv`,
+      columns: ["Fecha", "Estado", "Componente", "Especialista", "Tema/Servicio", "Tipo de tarea", "Duración esperada"],
+      rows: up.eventos.map((e) => [
+        e.fecha ? isoLocal(e.fecha) : "", e.ejecutado ? "Ejecutado" : "Programado",
+        e.componenteGrupo ? "C" + e.componenteGrupo : "", e.especialista || "",
+        e.tema || e.tipoServicio || "", e.tipoTarea || "",
+        (MT.reglaDuracion(e.tipoServicio, e.tipoTarea) || {}).label || "",
+      ]),
+    };
+
+    const kpis = [
+      kpiCard({
+        name: "ICE Global", icon: I.spark, tone: "purple", value: fmt1(up.ice.ICE_GLOBAL || 0),
+        foot: `<span class="muted">línea base de competitividad</span>`
+      }),
+      kpiCard({
+        name: "Componentes completados", icon: I.check, tone: "green", value: fmt(completados), unit: " / 5",
+        foot: `<span class="muted">de 5 componentes (C1–C5)</span>`
+      }),
+      kpiCard({
+        name: "Próximo recomendado", icon: I.target, tone: "purple",
+        value: topPend ? topPend.id : "—",
+        foot: topPend
+          ? `<span class="muted">${esc(truncate(CFG.COMPONENTES[topPend.grupo].nombre, 34))} · brecha ${fmt1(topPend.brecha)}</span>`
+          : `<span class="muted">Sin componentes pendientes por brecha</span>`
+      }),
+      kpiCard({
+        name: "Intervenciones totales", icon: I.layers, tone: "blue", value: fmt(up.eventos.length),
+        foot: `<span class="muted"><span class="strong">${fmt(ejecutadas)}</span> ejecutadas · <span class="strong">${fmt(programadas)}</span> programadas</span>`
+      }),
+    ].join("");
+
+    const radarPanel = panel("Radar de diagnóstico (ICE)",
+      `ICE Global ${fmt1(up.ice.ICE_GLOBAL || 0)} · las dimensiones con "≈" son estimadas desde el Nivel`,
+      CH.radar(dims, { highlightComponente: topPend ? topPend.grupo : null }));
+    const ordenPanel = panel("Orden recomendado de intervención",
+      "C1 es la línea base · C2–C5 según mayor brecha", ordenRecomendadoList(orden));
+
+    const monthMap = new Map();
+    up.eventos.forEach((e) => {
+      if (!e.fecha) return;
+      const key = e.fecha.getFullYear() + "-" + (e.fecha.getMonth() + 1);
+      if (!monthMap.has(key)) monthMap.set(key, { year: e.fecha.getFullYear(), month: e.fecha.getMonth() + 1, days: new Map() });
+      const mm = monthMap.get(key), day = e.fecha.getDate();
+      if (!mm.days.has(day)) mm.days.set(day, []);
+      mm.days.get(day).push(e);
+    });
+    const months = Array.from(monthMap.values()).sort((a, b) => a.year - b.year || a.month - b.month);
+    const compLegend = `<div class="cal-legend-punto">${[1, 2, 3, 4, 5].map((g) =>
+      `<span><i style="background:${COMPONENTE_COLORS[g]}"></i>${esc(CFG.COMPONENTES[g].id)}</span>`).join("")}
+      <span><i style="background:${COL.muted2}" class="hatch-swatch"></i>Programado (no ejecutado)</span></div>`;
+
+    const timelinePanel = up.eventos.length
+      ? `${panel("Días con intervención por mes", "clic en un día para resaltar en la línea de tiempo · sólido = ejecutado, trama = solo programado",
+        months.length ? `<div class="cal-grid">${months.map(renderMonthComponente).join("")}</div>${compLegend}` : CH.empty("Sin fechas registradas"))}
+      ${panel("Línea de tiempo del proceso de fortalecimiento", "",
+        `<div class="tl-list">${up.eventos.map(renderTimelineRow).join("")}</div>`)}`
+      : panel("Línea de tiempo del proceso de fortalecimiento", "", CH.empty("Sin intervenciones registradas aún para esta unidad productiva"));
+
+    return `
+      ${sectionHead("CdD-FEST · Planificador", up.razon || up.ruc)}
+      ${selector}
+      <section class="grid grid-kpi">${kpis}</section>
+      <section class="grid g-2">${radarPanel}${ordenPanel}</section>
+      ${timelinePanel}
+      <section class="card tablecard" id="tbl-cdd-comp"></section>`;
+  }
+
+  function ordenRecomendadoList(orden) {
+    return `<div class="orden-list">${orden.map((o, idx) => {
+      const comp = CFG.COMPONENTES[o.grupo];
+      const badge = o.estado === "completado" ? `<span class="badge green"><i></i>Completado</span>`
+        : o.estado === "programado" ? `<span class="badge amber"><i></i>Programado</span>`
+          : `<span class="badge neutral"><i></i>Pendiente</span>`;
+      const brechaTxt = o.brecha != null ? `${fmt1(o.brecha)}% brecha promedio` : "Línea base (diagnóstico)";
+      return `<div class="orden-row">
+        <span class="orden-pos">${idx + 1}</span>
+        <span class="orden-dot" style="background:${COMPONENTE_COLORS[o.grupo]}"></span>
+        <div class="orden-body">
+          <div class="orden-name">${esc(o.id)} · ${esc(truncate(comp.nombre, 40))}</div>
+          <div class="orden-sub">${esc(brechaTxt)}</div>
+        </div>
+        ${badge}
+      </div>`;
+    }).join("")}</div>`;
+  }
+
+  function renderMonthComponente(mm) {
+    const dows = ["L", "M", "M", "J", "V", "S", "D"];
+    const daysInMonth = new Date(mm.year, mm.month, 0).getDate();
+    const offset = (new Date(mm.year, mm.month - 1, 1).getDay() + 6) % 7;
+    const cells = [];
+    for (let i = 0; i < offset; i++) cells.push(`<div class="cal-day empty"></div>`);
+    for (let d = 1; d <= daysInMonth; d++) {
+      const items = mm.days.get(d);
+      if (!items) { cells.push(`<div class="cal-day">${d}</div>`); continue; }
+      const grupos = Array.from(new Set(items.map((e) => e.componenteGrupo).filter((g) => g != null)));
+      const colors = grupos.length ? grupos.map((g) => COMPONENTE_COLORS[g] || COL.muted2) : [COL.muted2];
+      const bg = colors.length === 1 ? colors[0]
+        : `linear-gradient(90deg, ${colors.map((c, i) =>
+          `${c} ${(i / colors.length * 100).toFixed(1)}% ${((i + 1) / colors.length * 100).toFixed(1)}%`).join(", ")})`;
+      const soloProgramado = items.every((e) => !e.ejecutado);
+      const iso = `${mm.year}-${String(mm.month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const cnt = items.length > 1 ? `<span class="cal-cnt">${items.length}</span>` : "";
+      const title = items.map((e) => `${e.ejecutado ? "Ejecutado" : "Programado"}` +
+        `${e.componenteGrupo ? " · C" + e.componenteGrupo : ""}${e.especialista ? " · " + e.especialista : ""}`).join(" | ");
+      cells.push(`<div class="cal-day on${soloProgramado ? " prog" : ""}" data-date="${iso}" style="background:${bg};cursor:pointer" title="${esc(title)}">${d}${cnt}</div>`);
+    }
+    return `<div class="cal-month">
+      <h4>${esc(CFG.MESES_NOMBRE[mm.month] || mm.month)} ${mm.year}</h4>
+      <div class="cal-week dow">${dows.map((x) => `<div class="cal-dow">${x}</div>`).join("")}</div>
+      <div class="cal-week">${cells.join("")}</div>
+    </div>`;
+  }
+
+  function renderTimelineRow(e) {
+    const dur = MT.reglaDuracion(e.tipoServicio, e.tipoTarea);
+    const badgeEstado = e.ejecutado ? `<span class="badge green"><i></i>Ejecutado</span>` : `<span class="badge amber"><i></i>Programado</span>`;
+    const compColor = e.componenteGrupo ? COMPONENTE_COLORS[e.componenteGrupo] : COL.muted2;
+    const compTxt = e.componenteGrupo
+      ? `${esc("C" + e.componenteGrupo)} · ${esc(truncate(CFG.COMPONENTES[e.componenteGrupo].nombre, 44))}`
+      : "Sin componente";
+    const fechaTxt = e.fecha ? e.fecha.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" }) : "Sin fecha";
+    const iso = e.fecha ? isoLocal(e.fecha) : "";
+    const detalle = [e.especialista, e.tema || e.tipoServicio, e.tipoTarea].filter(Boolean).map(esc).join(" · ");
+    return `<div class="tl-row" data-date="${iso}">
+      <div class="tl-dot" style="background:${compColor}"></div>
+      <div class="tl-body">
+        <div class="tl-top"><span class="tl-fecha">${esc(fechaTxt)}</span>${badgeEstado}${dur ? `<span class="badge neutral"><i></i>${esc(dur.label)}</span>` : ""}</div>
+        <div class="tl-comp" style="color:${compColor}">${compTxt}</div>
+        <div class="tl-meta">${detalle || "Sin especialista/tema registrado"}</div>
+      </div>
+    </div>`;
+  }
+
+  function afterCddFest() {
+    const unidades = MT.cddFestUnidades(STORE.ejecucion, STORE.programado, STORE.resultsIce);
+    wireSearchSelect("cdd-pick", unidades.map((u) => ({ value: u.ruc, label: u.razon || u.ruc, sub: u.ruc })),
+      (v) => { cddSel = v; renderView(); });
+
+    const up = unidades.find((u) => u.ruc === cddSel);
+    if (!up || !up.ice) return;
+
+    const el = document.getElementById("tbl-cdd-comp");
+    if (el) {
+      const rows = [1, 2, 3, 4, 5].map((g) => {
+        const est = up.estadoComponentes[g];
+        const comp = CFG.COMPONENTES[g];
+        return {
+          grupo: g, id: comp.id, nombre: comp.nombre,
+          status: est.status, especialistas: est.especialistas.join(", ") || "—",
+          ultima: est.ultimaEjecutada, proxima: est.proximaProgramada,
+        };
+      });
+      mountTable(el, {
+        title: "Estado de avance por componente", sub: "C1 a C5 · Unidad Productiva seleccionada",
+        search: false, rows, pageSize: 5,
+        columns: [
+          { label: "Componente", cls: "name", render: (r) => `<span style="color:${COMPONENTE_COLORS[r.grupo]};font-weight:700">${esc(r.id)}</span> · ${esc(r.nombre)}` },
+          {
+            label: "Estado", cls: "ctr", render: (r) => r.status === "completado" ? `<span class="badge green"><i></i>Completado</span>`
+              : r.status === "programado" ? `<span class="badge amber"><i></i>Programado</span>` : `<span class="badge neutral"><i></i>Pendiente</span>`
+          },
+          { label: "Especialista(s)", render: (r) => esc(r.especialistas) },
+          { label: "Última ejecutada", render: (r) => r.ultima ? r.ultima.toLocaleDateString("es-PE") : "—" },
+          { label: "Próxima programada", render: (r) => r.proxima ? r.proxima.toLocaleDateString("es-PE") : "—" },
+        ],
+      });
+    }
+
+    document.querySelectorAll(".cal-day[data-date]").forEach((cell) =>
+      cell.addEventListener("click", () => {
+        const iso = cell.dataset.date;
+        document.querySelectorAll(".cal-day.sel").forEach((c) => c.classList.remove("sel"));
+        cell.classList.add("sel");
+        document.querySelectorAll(".tl-row.sel").forEach((r) => r.classList.remove("sel"));
+        const rows = document.querySelectorAll(`.tl-row[data-date="${iso}"]`);
+        rows.forEach((r) => r.classList.add("sel"));
+        if (rows[0]) rows[0].scrollIntoView({ behavior: "smooth", block: "center" });
+      }));
+  }
+
   // =========================================================================
   //  RENDER PRINCIPAL
   // =========================================================================
@@ -878,6 +1144,7 @@
     clientes: { render: viewClientes, after: afterClientes },
     servicios: { render: viewServicios, after: null },
     calendario: { render: viewCalendario, after: afterCalendario },
+    cddfest: { render: viewCddFest, after: afterCddFest },
   };
 
   function renderView() {
@@ -1012,6 +1279,7 @@
       b.addEventListener("click", () => {
         VIEW = b.dataset.view;
         if (VIEW !== "especialistas") espSel = null;
+        if (VIEW !== "cddfest") cddSel = null;
         location.hash = VIEW;
         renderView();
       }));
@@ -1051,7 +1319,12 @@
 
   window.addEventListener("hashchange", () => {
     const h = (location.hash || "").replace("#", "");
-    if (NAV.some((n) => n.id === h) && h !== VIEW) { VIEW = h; if (VIEW !== "especialistas") espSel = null; renderView(); }
+    if (NAV.some((n) => n.id === h) && h !== VIEW) {
+      VIEW = h;
+      if (VIEW !== "especialistas") espSel = null;
+      if (VIEW !== "cddfest") cddSel = null;
+      renderView();
+    }
   });
   document.addEventListener("DOMContentLoaded", boot);
 })(window);
