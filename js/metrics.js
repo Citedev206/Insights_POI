@@ -62,13 +62,15 @@
       const meta = m.get(d) || 0, ejec = e.get(d) || 0;
       if (meta === 0 && ejec === 0) continue;   // omite filas vacías (0/0)
       const c = pct(meta, ejec);
-      out.push({ Dim: d, Meta: meta, Ejecutado: ejec, Cumplimiento: c,
-                 Brecha: Math.max(meta - ejec, 0), Semaforo: semaforo(c) });
+      out.push({
+        Dim: d, Meta: meta, Ejecutado: ejec, Cumplimiento: c,
+        Brecha: Math.max(meta - ejec, 0), Semaforo: semaforo(c)
+      });
     }
     if (orden) {
       const idx = new Map(orden.map((v, i) => [v, i]));
       out.sort((a, b) => (idx.has(a.Dim) ? idx.get(a.Dim) : 999) -
-                         (idx.has(b.Dim) ? idx.get(b.Dim) : 999));
+        (idx.has(b.Dim) ? idx.get(b.Dim) : 999));
     }
     return out;
   }
@@ -76,8 +78,10 @@
   function tendenciaMensual(eje, met) {
     const df = metaVsEjec(eje, met, X.MES, M.MES, Array.from({ length: 12 }, (_, i) => i + 1));
     return df.filter((r) => r.Dim >= 1 && r.Dim <= 12)
-             .map((r) => Object.assign({}, r, { Mes: CFG.MESES_ES[r.Dim] || r.Dim,
-                                                MesNum: r.Dim }));
+      .map((r) => Object.assign({}, r, {
+        Mes: CFG.MESES_ES[r.Dim] || r.Dim,
+        MesNum: r.Dim
+      }));
   }
 
   function rankingEspecialistas(eje, met) {
@@ -196,7 +200,7 @@
     }
 
     const nuevos = bd && bd.length ? rucsNuevos.size
-                                   : tabla.filter((t) => t.NMeses === 1).length;
+      : tabla.filter((t) => t.NMeses === 1).length;
     const reenganchados = bd && bd.length ? rucsReeng.size : 0;
     const focalizados = tabla.filter((t) => t.Focalizado).length;
     return {
@@ -225,8 +229,10 @@
     return meses.map((mes) => {
       const activos = activosSet.get(mes).size;
       const nuevos = nuevosMes.has(mes) ? nuevosMes.get(mes).size : 0;
-      return { MesNum: mes, Mes: CFG.MESES_ES[mes] || mes, Activos: activos,
-               Nuevos: nuevos, Recurrentes: activos - nuevos };
+      return {
+        MesNum: mes, Mes: CFG.MESES_ES[mes] || mes, Activos: activos,
+        Nuevos: nuevos, Recurrentes: activos - nuevos
+      };
     });
   }
 
@@ -268,8 +274,8 @@
     }
     const espsMeta = espsConMeta instanceof Set ? espsConMeta : new Set(espsConMeta || []);
     const Nesp = Math.max(espsMeta.size, 1);
-    const targetFoc = metaFocTotal / Nesp;
-    const targetNoFoc = metaNoFocTotal / Nesp;
+    const targetFoc = Math.ceil(metaFocTotal / Nesp);
+    const targetNoFoc = Math.ceil(metaNoFocTotal / Nesp);
     const allEsps = new Set([...tally.keys(), ...espsMeta]);
     const rows = [];
     for (const esp of allEsps) {
@@ -300,8 +306,10 @@
     const meses = Array.from(byMes.keys()).filter((m) => m >= 1 && m <= 12).sort((a, b) => a - b);
     return meses.map((mes) => {
       const o = byMes.get(mes);
-      return { MesNum: mes, Mes: CFG.MESES_ES[mes] || mes,
-               FOCALIZADO: o.FOC, NO_FOCALIZADO: o.NOFOC, META_TOTAL: o.FOC + o.NOFOC };
+      return {
+        MesNum: mes, Mes: CFG.MESES_ES[mes] || mes,
+        FOCALIZADO: o.FOC, NO_FOCALIZADO: o.NOFOC, META_TOTAL: o.FOC + o.NOFOC
+      };
     });
   }
 
@@ -331,10 +339,16 @@
   }
 
   // Orden recomendado de intervención: C1 siempre primero (es la línea base:
-  // el propio diagnóstico), luego C2-C5 ordenados por brecha promedio
-  // descendente (mayor brecha = mayor prioridad). Cruza con el estado real
-  // de ejecución/programación si se provee `estadoComponentes` (de
-  // cddFestUnidades) para mostrar recomendación vs. avance real.
+  // el propio diagnóstico). Entre C2-C5 TODAVÍA PENDIENTES, se recomienda
+  // avanzar primero al que tiene MENOR brecha promedio (el más cerca de
+  // estar listo) — no al de mayor brecha. Esto evita saltar a un componente
+  // avanzado (p. ej. C5 Comercio Exterior, que suele partir con brechas muy
+  // altas en casi todas las UP) mientras uno anterior (p. ej. C4
+  // Digitalización) todavía tiene una brecha grande sin resolver; y sí deja
+  // en primer lugar a un componente avanzado cuando una UP puntual ya está
+  // bien encaminada ahí (brecha pequeña). Los componentes ya completados o
+  // programados no compiten por prioridad: se muestran después, en su orden
+  // natural C2→C5, porque ya fueron atendidos o ya tienen fecha.
   function ordenRecomendado(iceRow, estadoComponentes) {
     const dims = iceBrechas(iceRow);
     const porComponente = new Map();
@@ -344,17 +358,18 @@
       porComponente.get(d.componente).push(d.brecha);
     }
     const estadoDe = (g) => (estadoComponentes && estadoComponentes[g] && estadoComponentes[g].status) || "pendiente";
-    const orden = [{
+    const c1 = {
       grupo: 1, id: "C1", brecha: null,
       estado: estadoComponentes ? estadoDe(1) : (iceRow ? "completado" : "pendiente"),
-    }];
+    };
     const resto = [2, 3, 4, 5].map((g) => {
       const brechas = porComponente.get(g) || [];
       const brechaProm = brechas.length ? brechas.reduce((a, b) => a + b, 0) / brechas.length : 0;
       return { grupo: g, id: "C" + g, brecha: round1(brechaProm), estado: estadoDe(g) };
     });
-    resto.sort((a, b) => b.brecha - a.brecha);
-    return orden.concat(resto);
+    const pendientes = resto.filter((r) => r.estado === "pendiente").sort((a, b) => a.brecha - b.brecha);
+    const atendidos = resto.filter((r) => r.estado !== "pendiente").sort((a, b) => a.grupo - b.grupo);
+    return [c1, ...pendientes, ...atendidos];
   }
 
   // Agrupa ejecución + programado de CdD-FEST por Unidad Productiva (RUC),
@@ -440,6 +455,71 @@
       .sort((a, b) => String(a.razon || a.ruc).localeCompare(String(b.razon || b.ruc), "es"));
   }
 
+  // Vista agregada (todas las UP a la vez) por componente: cuántas UP están
+  // completadas / programadas / pendientes en cada componente C1-C5, y la
+  // matriz UP × componente para la tabla de la "Vista general" — sin mezclar
+  // los estados de cada componente entre sí (cada columna es independiente).
+  function cddFestResumenComponentes(unidades) {
+    const porComponente = {};
+    for (let g = 1; g <= 5; g++) porComponente[g] = { completado: 0, programado: 0, pendiente: 0 };
+    const matriz = (unidades || []).map((u) => {
+      const estados = {};
+      let completados = 0;
+      for (let g = 1; g <= 5; g++) {
+        const st = (u.estadoComponentes && u.estadoComponentes[g] && u.estadoComponentes[g].status) || "pendiente";
+        estados[g] = st;
+        porComponente[g][st]++;
+        if (st === "completado") completados++;
+      }
+      return { ruc: u.ruc, razon: u.razon || u.ruc, estados, completados };
+    });
+    // Por defecto: las UP más avanzadas (más componentes completados)
+    // primero, para identificar de un vistazo quién va más adelante.
+    matriz.sort((a, b) => b.completados - a.completados ||
+      String(a.razon || a.ruc).localeCompare(String(b.razon || b.ruc), "es"));
+    return { porComponente, matriz };
+  }
+
+  // Detalle de un componente (grupo 1-5) a nivel de ACTIVIDAD (código
+  // decimal exacto, p. ej. 3.1 vs 3.4 dentro de C3): qué UP pasaron por cada
+  // actividad, con especialista y estado (ejecutado/programado). Sirve para
+  // el "clic en la tarjeta del componente" de la Vista general.
+  //
+  // Una misma UP puede tomar más de un servicio dentro de la MISMA
+  // actividad (p. ej. dos visitas de asistencia técnica en 3.4): se
+  // consolida en **una sola fila por UP+actividad** (`cantServicios` cuenta
+  // cuántos servicios/eventos hay detrás) para no duplicar la UP en la
+  // tabla ni en el conteo de `porActividad` (que cuenta UP únicas, no
+  // servicios).
+  function cddFestDetalleComponente(unidades, grupo) {
+    const grupos = new Map(); // "ruc|codigo" -> { ruc, razon, codigo, eventos:[] }
+    (unidades || []).forEach((u) => {
+      u.eventos.filter((e) => e.componenteGrupo === grupo).forEach((e) => {
+        const codigo = e.componenteCodigo != null ? e.componenteCodigo.toFixed(1) : null;
+        const key = u.ruc + "|" + codigo;
+        if (!grupos.has(key)) grupos.set(key, { ruc: u.ruc, razon: u.razon || u.ruc, codigo, eventos: [] });
+        grupos.get(key).eventos.push(e);
+      });
+    });
+    const filas = Array.from(grupos.values()).map((g) => {
+      const eventos = g.eventos.slice().sort((a, b) =>
+        (a.fecha ? a.fecha.getTime() : 0) - (b.fecha ? b.fecha.getTime() : 0));
+      const especialistas = Array.from(new Set(eventos.map((e) => e.especialista).filter(Boolean)));
+      const ultima = eventos[eventos.length - 1];
+      return {
+        ruc: g.ruc, razon: g.razon, codigo: g.codigo,
+        especialista: especialistas.join(", ") || null,
+        ejecutado: eventos.some((e) => e.ejecutado),
+        fecha: ultima ? ultima.fecha : null,
+        cantServicios: eventos.length,
+      };
+    });
+    filas.sort((a, b) => (a.fecha ? a.fecha.getTime() : 0) - (b.fecha ? b.fecha.getTime() : 0));
+    const porActividad = new Map(); // código -> conteo de UP únicas (no de servicios)
+    filas.forEach((f) => { if (f.codigo) porActividad.set(f.codigo, (porActividad.get(f.codigo) || 0) + 1); });
+    return { filas, porActividad };
+  }
+
   // Regla informativa de duración esperada por tipo de actividad (no
   // reprograma fechas, solo etiqueta): asistencia técnica ≥ 7h, diseño 3-4h.
   const RE_MARCAS_COMBINANTES = new RegExp("[\\u0300-\\u036f]", "g");
@@ -458,7 +538,8 @@
     complejidadResumen, heatmapCumplimiento, clientesResumen,
     clientesNuevosPorMes, kpisClientes, clientesMetaPorMes,
     clientesMetaEspecialistas,
-    componenteGrupo, iceBrechas, ordenRecomendado, cddFestUnidades, reglaDuracion,
+    componenteGrupo, iceBrechas, ordenRecomendado, cddFestUnidades,
+    cddFestResumenComponentes, cddFestDetalleComponente, reglaDuracion,
     sumBy, uniqueCountBy, nunique, sumCol,
   };
 })(window);

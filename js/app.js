@@ -20,6 +20,9 @@
   let cliSel = null;               // empresa seleccionada en el Calendario
   let calMode = "empresa";         // modo del calendario: "empresa" | "intervencion"
   let cddSel = null;               // Unidad Productiva seleccionada en CdD-FEST
+  let cddMode = "up";              // modo CdD-FEST: "up" (por unidad) | "general" (todas)
+  let cddDrillGrupo = null;        // componente (1-5) elegido en la Vista general para ver su detalle
+  let cddDrillActividad = null;    // código de actividad (p. ej. "3.4") elegido dentro del detalle del componente
   let lastExport = null;           // datos exportables de la vista activa
 
   // ---- iconografía ----------------------------------------------------------
@@ -923,11 +926,20 @@
     }
   }
 
-  // ---- CdD-FEST: planificador por Unidad Productiva ------------------------
+  // ---- CdD-FEST: planificador (dos modos: por UP / vista general) ----------
   // Ignora los filtros globales (programa/mes/especialista): tiene su propio
-  // selector de UP y siempre muestra la línea de tiempo completa, igual que
-  // "Especialistas" tiene su propio picker independiente del filtro global.
+  // buscador de UP, igual que "Especialistas" tiene su propio picker
+  // independiente del filtro global.
   function viewCddFest() {
+    const tabs = `<div class="segmented" id="cdd-tabs">
+      <button class="seg ${cddMode === "up" ? "active" : ""}" data-mode="up">Por Unidad Productiva</button>
+      <button class="seg ${cddMode === "general" ? "active" : ""}" data-mode="general">Vista general</button>
+    </div>`;
+    const body = cddMode === "general" ? viewCddFestGeneral() : viewCddFestUP();
+    return `${tabs}${body}`;
+  }
+
+  function viewCddFestUP() {
     const unidades = MT.cddFestUnidades(STORE.ejecucion, STORE.programado, STORE.resultsIce);
     if (!unidades.length)
       return noData("Aún no hay Unidades Productivas atendidas por CdD-FEST (ninguna con el componente 1.1 · Índice de Competitividad ejecutado).");
@@ -988,7 +1000,8 @@
       `ICE Global ${fmt1(up.ice.ICE_GLOBAL || 0)} · las dimensiones con "≈" son estimadas desde el Nivel`,
       CH.radar(dims, { highlightComponente: topPend ? topPend.grupo : null }));
     const ordenPanel = panel("Orden recomendado de intervención",
-      "C1 es la línea base · C2–C5 según mayor brecha", ordenRecomendadoList(orden));
+      "C1 es la línea base · entre los pendientes, se prioriza el de MENOR brecha (más cerca de estar listo)",
+      ordenRecomendadoList(orden));
 
     const monthMap = new Map();
     up.eventos.forEach((e) => {
@@ -1037,6 +1050,154 @@
         ${badge}
       </div>`;
     }).join("")}</div>`;
+  }
+
+  // ---- CdD-FEST · Vista general: todas las UP por componente (sin mezclar) -
+  function compBadge(status) {
+    if (status === "completado") return `<span class="badge green"><i></i>Completado</span>`;
+    if (status === "programado") return `<span class="badge amber"><i></i>Programado</span>`;
+    return `<span class="badge neutral"><i></i>Pendiente</span>`;
+  }
+  function triBand(completado, programado, pendiente) {
+    const total = Math.max(completado + programado + pendiente, 1);
+    const w = (n) => (n / total * 100).toFixed(1);
+    return `<div class="triband">
+      <span style="width:${w(completado)}%;background:${CH.SEM.verde}" title="Completado: ${completado}"></span>
+      <span style="width:${w(programado)}%;background:${CH.SEM.amarillo}" title="Programado: ${programado}"></span>
+      <span style="width:${w(pendiente)}%;background:${COL.track}" title="Pendiente: ${pendiente}"></span>
+    </div>`;
+  }
+
+  function viewCddFestGeneral() {
+    const unidades = MT.cddFestUnidades(STORE.ejecucion, STORE.programado, STORE.resultsIce);
+    if (!unidades.length)
+      return noData("Aún no hay Unidades Productivas atendidas por CdD-FEST (ninguna con el componente 1.1 · Índice de Competitividad ejecutado).");
+    const resumen = MT.cddFestResumenComponentes(unidades);
+
+    lastExport = {
+      filename: "cddfest_resumen_componentes.csv",
+      columns: ["RUC", "Razón social", "C1", "C2", "C3", "C4", "C5", "Completados"],
+      rows: resumen.matriz.map((r) => [r.ruc, r.razon, r.estados[1], r.estados[2], r.estados[3], r.estados[4], r.estados[5], r.completados]),
+    };
+
+    const cards = [1, 2, 3, 4, 5].map((g) => {
+      const comp = CFG.COMPONENTES[g];
+      const s = resumen.porComponente[g];
+      const activo = cddDrillGrupo === g;
+      return `<div class="card cdd-comp-card${activo ? " active" : ""}" data-grupo="${g}" role="button" tabindex="0">
+        <div class="card-head"><div>
+          <h3 style="color:${COMPONENTE_COLORS[g]}">${esc(comp.id)}</h3>
+          <div class="sub">${esc(truncate(comp.nombre, 38))}</div>
+        </div></div>
+        <div class="chartbox">
+          ${triBand(s.completado, s.programado, s.pendiente)}
+          <div class="statlist" style="margin-top:12px">
+            <div class="row"><span class="l"><i style="background:${CH.SEM.verde}"></i>Completado</span><span class="val">${fmt(s.completado)}</span></div>
+            <div class="row"><span class="l"><i style="background:${CH.SEM.amarillo}"></i>Programado</span><span class="val">${fmt(s.programado)}</span></div>
+            <div class="row"><span class="l"><i style="background:${COL.track}"></i>Pendiente</span><span class="val">${fmt(s.pendiente)}</span></div>
+          </div>
+          <div class="muted" style="margin-top:8px;font-size:.72rem">de ${fmt(unidades.length)} UP atendidas por CdD-FEST</div>
+        </div>
+      </div>`;
+    }).join("");
+
+    const drill = cddDrillGrupo ? renderCddDrilldown(unidades, cddDrillGrupo) : "";
+
+    return `
+      ${sectionHead("Vista general por componente", `${unidades.length} Unidades Productivas atendidas por CdD-FEST · sin mezclar estados entre componentes`)}
+      <section class="grid grid-kpi-5">${cards}</section>
+      ${drill}
+      <section class="card tablecard" id="tbl-cdd-general"></section>`;
+  }
+
+  // Detalle de un componente al hacer clic en su tarjeta: qué actividades lo
+  // componen (código exacto, p. ej. 3.1 vs 3.4) y qué UP pasaron por cada una.
+  function renderCddDrilldown(unidades, grupo) {
+    const comp = CFG.COMPONENTES[grupo];
+    const det = MT.cddFestDetalleComponente(unidades, grupo);
+    const actCodes = Array.from(det.porActividad.keys()).sort();
+    const actBotones = actCodes.length
+      ? `<div class="chipbar" id="cdd-act-chips">${actCodes.map((code) => {
+        const act = CFG.ACTIVIDADES[code];
+        const label = act ? `${code} · ${act.nombre}` : code;
+        const activo = cddDrillActividad === code;
+        return `<button type="button" class="chip cdd-act-chip${activo ? " active" : ""}" data-codigo="${esc(code)}">
+          ${esc(label)}<span class="chip-count">${fmt(det.porActividad.get(code))}</span>
+        </button>`;
+      }).join("")}</div>`
+      : CH.empty("Sin intervenciones registradas todavía en este componente");
+
+    return panel(`Detalle de ${esc(comp.id)} · ${esc(comp.nombre)}`,
+      "Actividades del componente (código exacto) · clic en una para ver solo sus unidades productivas",
+      `${actBotones}<div id="tbl-cdd-drill" style="margin-top:14px"></div>`);
+  }
+
+  function afterCddFestGeneral() {
+    const unidades = MT.cddFestUnidades(STORE.ejecucion, STORE.programado, STORE.resultsIce);
+    const resumen = MT.cddFestResumenComponentes(unidades);
+
+    document.querySelectorAll(".cdd-comp-card").forEach((card) => {
+      const pick = () => {
+        const g = Number(card.dataset.grupo);
+        cddDrillGrupo = cddDrillGrupo === g ? null : g;
+        cddDrillActividad = null;
+        renderView();
+      };
+      card.addEventListener("click", pick);
+      card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pick(); } });
+    });
+
+    if (cddDrillGrupo) {
+      const det = MT.cddFestDetalleComponente(unidades, cddDrillGrupo);
+
+      document.querySelectorAll(".cdd-act-chip").forEach((chip) => {
+        chip.addEventListener("click", () => {
+          const code = chip.dataset.codigo;
+          cddDrillActividad = cddDrillActividad === code ? null : code;
+          renderView();
+        });
+      });
+
+      const filas = cddDrillActividad ? det.filas.filter((r) => r.codigo === cddDrillActividad) : det.filas;
+      const drillEl = document.getElementById("tbl-cdd-drill");
+      if (drillEl) {
+        mountTable(drillEl, {
+          title: "Unidades productivas",
+          sub: cddDrillActividad
+            ? `${filas.length} UP en la actividad ${cddDrillActividad}`
+            : `${filas.length} UP · una fila por UP+actividad (varios servicios se consolidan en "Cant. servicios")`,
+          searchPlaceholder: "Buscar por RUC o razón social…", searchKeys: ["ruc", "razon"],
+          rows: filas, pageSize: 12, totalLabel: " UP",
+          columns: [
+            { label: "Unidad productiva", cls: "name", render: (r) => esc(r.razon) },
+            { label: "RUC", render: (r) => esc(r.ruc) },
+            { label: "Actividad", cls: "ctr", render: (r) => r.codigo ? esc(r.codigo) : "—" },
+            { label: "Especialista", render: (r) => esc(r.especialista || "—") },
+            { label: "Estado", cls: "ctr", render: (r) => r.ejecutado ? `<span class="badge green"><i></i>Ejecutado</span>` : `<span class="badge amber"><i></i>Programado</span>` },
+            { label: "Fecha", render: (r) => r.fecha ? r.fecha.toLocaleDateString("es-PE") : "—" },
+            { label: "Cant. servicios", cls: "num", render: (r) => fmt(r.cantServicios) },
+          ],
+        });
+      }
+    }
+
+    const el = document.getElementById("tbl-cdd-general");
+    if (!el) return;
+    mountTable(el, {
+      title: "Unidades Productivas por componente", sub: `${resumen.matriz.length} UP · C1–C5 · ordenadas por más componentes completados`,
+      searchPlaceholder: "Buscar por RUC o razón social…", searchKeys: ["ruc", "razon"],
+      rows: resumen.matriz, pageSize: 15, totalLabel: " UP", search: true,
+      columns: [
+        { label: "Unidad productiva", cls: "name", render: (r) => esc(r.razon) },
+        { label: "RUC", render: (r) => esc(r.ruc) },
+        { label: "C1", cls: "ctr", render: (r) => compBadge(r.estados[1]) },
+        { label: "C2", cls: "ctr", render: (r) => compBadge(r.estados[2]) },
+        { label: "C3", cls: "ctr", render: (r) => compBadge(r.estados[3]) },
+        { label: "C4", cls: "ctr", render: (r) => compBadge(r.estados[4]) },
+        { label: "C5", cls: "ctr", render: (r) => compBadge(r.estados[5]) },
+        { label: "Completados", cls: "num strong", render: (r) => fmt(r.completados) + " / 5" },
+      ],
+    });
   }
 
   function renderMonthComponente(mm) {
@@ -1088,6 +1249,14 @@
   }
 
   function afterCddFest() {
+    const tabs = document.getElementById("cdd-tabs");
+    if (tabs) tabs.querySelectorAll(".seg").forEach((b) =>
+      b.addEventListener("click", () => { if (cddMode !== b.dataset.mode) { cddMode = b.dataset.mode; cddDrillGrupo = null; cddDrillActividad = null; renderView(); } }));
+    if (cddMode === "general") { afterCddFestGeneral(); return; }
+    afterCddFestUP();
+  }
+
+  function afterCddFestUP() {
     const unidades = MT.cddFestUnidades(STORE.ejecucion, STORE.programado, STORE.resultsIce);
     wireSearchSelect("cdd-pick", unidades.map((u) => ({ value: u.ruc, label: u.razon || u.ruc, sub: u.ruc })),
       (v) => { cddSel = v; renderView(); });
@@ -1279,7 +1448,7 @@
       b.addEventListener("click", () => {
         VIEW = b.dataset.view;
         if (VIEW !== "especialistas") espSel = null;
-        if (VIEW !== "cddfest") cddSel = null;
+        if (VIEW !== "cddfest") { cddSel = null; cddMode = "up"; cddDrillGrupo = null; cddDrillActividad = null; }
         location.hash = VIEW;
         renderView();
       }));
@@ -1322,7 +1491,7 @@
     if (NAV.some((n) => n.id === h) && h !== VIEW) {
       VIEW = h;
       if (VIEW !== "especialistas") espSel = null;
-      if (VIEW !== "cddfest") cddSel = null;
+      if (VIEW !== "cddfest") { cddSel = null; cddMode = "up"; cddDrillGrupo = null; cddDrillActividad = null; }
       renderView();
     }
   });

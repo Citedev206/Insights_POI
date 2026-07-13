@@ -66,6 +66,26 @@
            objetivo: "Preparar a las UP para exportar y facilitar operaciones internacionales." },
     },
 
+    // ---- CdD-FEST: catálogo de actividades (código decimal → nombre +
+    // especialista de referencia). Un componente puede tener varias
+    // actividades (p. ej. C3 agrupa 3.1 a 3.7); el código exacto de cada
+    // evento viene de COMPONENTE en ejecucion.xlsx / programado.xlsx.
+    ACTIVIDADES: {
+      "1.1": { nombre: "Medición del Índice de Competitividad", especialista: "Lita Castillo" },
+      "2.1": { nombre: "Gestión tecnológica empresarial", especialista: "Mitzuko Quispe" },
+      "3.1": { nombre: "Diseño y desarrollo de productos", especialista: "Willy Arredondo" },
+      "3.2": { nombre: "Diseño y desarrollo de productos textiles", especialista: "Eusebio Coanqui" },
+      "3.3": { nombre: "Propuestas innovadoras de productos textiles", especialista: "Diseñadora" },
+      "3.4": { nombre: "Tinturación y acabados húmedos", especialista: "Erika Turpo" },
+      "3.5": { nombre: "Soporte productivo en teñido", especialista: null },
+      "3.6": { nombre: "Soporte productivo en acabados", especialista: null },
+      "3.7": { nombre: "Ensayos de laboratorio", especialista: "Miriam Pari" },
+      "4.1": { nombre: "Marketing digital", especialista: "Luis Valencia" },
+      "4.2": { nombre: "Herramientas digitales y tecnología", especialista: "Ruth Arce" },
+      "4.3": { nombre: "Diseño de envases y empaques", especialista: "Henry Gutiérrez" },
+      "5.1": { nombre: "Comercio internacional", especialista: "Cynthia" },
+    },
+
     // ---- CdD-FEST: dimensiones del ICE (results_ice.xlsx) -----------------
     // `componente` liga la dimensión a un componente C2-C5 para el cálculo de
     // brechas y el orden recomendado (C1 es la línea base: el propio

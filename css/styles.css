@@ -467,6 +467,31 @@ select.pick:focus{ outline:none; border-color:var(--purple); }
   text-overflow:ellipsis; white-space:nowrap; }
 .orden-sub{ font-size:.74rem; color:var(--muted); margin-top:1px; }
 
+/* CdD-FEST · Vista general: franja de 3 estados (completado/programado/pendiente) */
+.triband{ display:flex; height:10px; border-radius:99px; overflow:hidden; background:var(--track); }
+.triband span{ display:block; height:100%; }
+
+/* Tarjeta de componente clicable (Vista general → detalle por actividad) */
+.cdd-comp-card{ cursor:pointer; transition:box-shadow .15s ease, border-color .15s ease, transform .15s ease; }
+.cdd-comp-card:hover{ box-shadow:var(--shadow); transform:translateY(-2px); }
+.cdd-comp-card.active{ border-color:var(--purple); box-shadow:0 0 0 2px var(--purple-tint); }
+.cdd-comp-card:focus-visible{ outline:2px solid var(--purple); outline-offset:2px; }
+
+/* Botones de actividad del detalle de componente (clic filtra la tabla) */
+.chipbar{ display:flex; flex-wrap:wrap; gap:8px; }
+.chip{
+  display:inline-flex; align-items:center; gap:7px; font-family:inherit; font-size:.78rem;
+  font-weight:600; color:var(--text); background:#fff; border:1px solid #EAE3EE;
+  border-radius:99px; padding:7px 8px 7px 14px; cursor:pointer;
+  transition:border-color .15s ease, background .15s ease, color .15s ease;
+}
+.chip:hover{ border-color:var(--purple-soft); }
+.chip.active{ background:var(--purple); border-color:var(--purple); color:#fff; }
+.chip.active .chip-count{ background:rgba(255,255,255,.22); color:#fff; }
+.chip-count{ font-size:.72rem; font-weight:700; color:var(--purple); background:var(--purple-tint);
+  border-radius:99px; padding:2px 9px; font-variant-numeric:tabular-nums; }
+.chip:focus-visible{ outline:2px solid var(--purple); outline-offset:2px; }
+
 /* ============================================================
    CdD-FEST · línea de tiempo del proceso de fortalecimiento
    ============================================================ */

@@ -124,18 +124,27 @@ buscador de Unidad Productiva por RUC o razón social). Solo aparecen las UP
 Tener una fila en `results_ice.xlsx` no basta por sí sola para aparecer en
 la lista (puede ser un diagnóstico externo sin visita real); si una UP fue
 atendida (1.1 ejecutado) pero aún no tiene fila en `results_ice.xlsx`,
-aparece en el buscador con el estado "Diagnóstico ICE pendiente". Por cada
-UP muestra:
+aparece en el buscador con el estado "Diagnóstico ICE pendiente". Tiene dos
+modos (pestañas):
+
+### Por Unidad Productiva
 
 * **Radar ICE** (8 dimensiones) con el diagnóstico de `results_ice.xlsx`.
 * **Orden recomendado de intervención**: C1 es la línea base (el propio
-  diagnóstico); C2–C5 se ordenan por **brecha promedio** (100 − puntaje) de
-  sus dimensiones ICE asociadas — mayor brecha, mayor prioridad. Mapeo:
-  C2 Gestión Empresarial → Gestión Organizacional + Financiera y Tributaria ·
-  C3 Mejora de procesos → Gestión Productiva · C4 Digitalización y Packaging
-  → Tecnología e Innovación + Marketing · C5 Comercio Exterior → Comercio
-  Exterior. Sostenibilidad y Ecosistema de Influencia se ven en el radar como
-  contexto, sin priorizar un componente.
+  diagnóstico, siempre primero). Entre los componentes C2–C5 **todavía
+  pendientes**, se prioriza el de **MENOR brecha promedio** (el más cerca de
+  estar listo) — no el de mayor brecha. Así se evita recomendar saltar a un
+  componente avanzado (p. ej. C5 Comercio Exterior, que suele partir con
+  brechas muy altas en casi todas las UP) mientras uno anterior (p. ej. C4
+  Digitalización) todavía tiene una brecha grande sin resolver; y si una UP
+  puntual ya está bien encaminada en un componente avanzado, ese sí sube de
+  prioridad. Los componentes ya completados o programados no compiten por
+  prioridad: se muestran después, en su orden natural C2→C5. Mapeo componente
+  → dimensión ICE: C2 Gestión Empresarial → Gestión Organizacional +
+  Financiera y Tributaria · C3 Mejora de procesos → Gestión Productiva ·
+  C4 Digitalización y Packaging → Tecnología e Innovación + Marketing ·
+  C5 Comercio Exterior → Comercio Exterior. Sostenibilidad y Ecosistema de
+  Influencia se ven en el radar como contexto, sin priorizar un componente.
 * **Línea de tiempo**: cruza lo ejecutado (`ejecucion.xlsx` → `COMPONENTE`)
   con lo programado (`programado.xlsx` → `RUC`+`COMPONENTE`), coloreado por
   componente (sólido = ejecutado, trama diagonal = solo programado). Cada
@@ -144,6 +153,29 @@ UP muestra:
   3–4 h — no reprograma fechas ni asigna horarios automáticamente.
 * **Estado por componente** (C1–C5): completado / programado / pendiente,
   especialista(s) asignado(s), última fecha ejecutada y próxima programada.
+
+### Vista general
+
+Todas las UP a la vez, **sin mezclar** el estado de un componente con otro:
+una tarjeta por componente (C1–C5) con el conteo de UP completadas /
+programadas / pendientes, y una tabla-matriz (UP × C1–C5, buscable por RUC o
+razón social, **ordenada por defecto por más componentes completados
+primero**) para ver de un vistazo qué unidades productivas van más
+adelantadas y cuáles fueron atendidas en cada componente.
+
+**Clic en cualquier tarjeta de componente** (p. ej. C3) abre su detalle a
+nivel de **actividad exacta** (código decimal, p. ej. 3.1 vs 3.4 — un
+componente puede agrupar varias actividades con especialistas distintos:
+`CFG.ACTIVIDADES` en `js/data.js`), con un **botón por actividad** (con su
+conteo de UP) — clic en uno filtra la tabla a solo esa actividad para verla
+más limpia; un segundo clic la quita. Un segundo clic en la tarjeta del
+componente cierra todo el detalle.
+
+Una misma UP puede tomar **más de un servicio dentro de la misma
+actividad** (p. ej. dos visitas de asistencia técnica en 3.4): la tabla y
+el conteo de cada botón cuentan **UP únicas, no servicios** — cada UP
+aparece una sola vez por actividad, con una columna **"Cant. servicios"**
+indicando cuántos servicios se consolidaron en esa fila.
 
 ## 🎨 Identidad visual
 
