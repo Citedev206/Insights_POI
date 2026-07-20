@@ -59,9 +59,9 @@ body{
 .shell{ display:flex; min-height:100vh; }
 
 .rail{
-  width:70px; flex:0 0 70px; background:var(--purple);
+  width:88px; flex:0 0 88px; background:var(--purple);
   display:flex; flex-direction:column; align-items:center;
-  padding:18px 0; gap:6px; position:sticky; top:0; height:100vh; z-index:30;
+  padding:18px 0; gap:4px; position:sticky; top:0; height:100vh; z-index:30;
 }
 .rail-logo{
   width:40px; height:40px; border-radius:12px; background:#fff;
@@ -70,15 +70,20 @@ body{
 }
 .rail-logo img{ width:100%; height:100%; object-fit:contain; padding:4px; }
 .rail-btn{
-  width:46px; height:46px; border:none; background:transparent; cursor:pointer;
-  border-radius:12px; display:grid; place-items:center; color:#D8B8D8;
+  width:76px; min-height:52px; border:none; background:transparent; cursor:pointer;
+  border-radius:12px; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:3px; padding:7px 4px; color:#D8B8D8;
   transition:background .15s ease, color .15s ease; position:relative;
 }
 .rail-btn:hover{ background:rgba(255,255,255,.10); color:#fff; }
 .rail-btn.active{ background:rgba(255,255,255,.16); color:#fff; }
-.rail-btn svg{ width:21px; height:21px; }
+.rail-btn svg{ width:20px; height:20px; flex:0 0 auto; }
+.rail-label{
+  font-size:.62rem; font-weight:600; line-height:1.15; text-align:center;
+  max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
 .rail-btn .tip{
-  position:absolute; left:56px; top:50%; transform:translateY(-50%) scale(.96);
+  position:absolute; left:80px; top:50%; transform:translateY(-50%) scale(.96);
   background:var(--ink); color:#fff; font-size:.72rem; font-weight:600;
   padding:5px 10px; border-radius:7px; white-space:nowrap; pointer-events:none;
   opacity:0; transition:opacity .14s ease, transform .14s ease; z-index:40;
@@ -534,9 +539,10 @@ tr.row-expand td{ background:#FBFAFC; padding:14px 16px; border-bottom:1px solid
    ============================================================ */
 .heatmap{ display:flex; flex-direction:column; gap:4px; min-width:520px; }
 .hm-row{ display:grid; grid-template-columns:220px repeat(var(--hm-cols,12), 1fr); gap:4px; align-items:center; }
-.hm-lab{ font-size:.76rem; color:var(--text); font-weight:500; white-space:nowrap;
-  overflow:hidden; text-overflow:ellipsis; padding-right:6px; }
-.hm-cell{ height:42px; border-radius:5px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#fff;
+.hm-lab{ font-size:.76rem; color:var(--text); font-weight:500; display:flex; justify-content:space-between; align-items:center; padding-right:6px; gap:6px; }
+.hm-lab-t { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hm-lab-n { flex-shrink:0; font-size:.7rem; font-weight:700; color:var(--purple); }
+.hm-cell{ height:42px; border-radius:5px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--surface);
   font-size:.72rem; font-weight:600; font-variant-numeric:tabular-nums; gap:1px; }
 .hm-pct{ font-size:.72rem; font-weight:700; line-height:1.1; }
 .hm-detail{ font-size:.6rem; font-weight:500; opacity:.88; line-height:1.1; }
@@ -544,6 +550,12 @@ tr.row-expand td{ background:#FBFAFC; padding:14px 16px; border-bottom:1px solid
   text-transform:uppercase; font-size:.66rem; letter-spacing:.4px; height:auto; }
 .hm-mes{ height:auto; }
 .hm-scroll{ overflow-x:auto; }
+/* Ejecutado sin meta programada: celda neutra (ni semáforo ni transparente),
+   para no esconder ejecución real que no tenía meta. */
+.hm-cell.hm-nometa{ background:var(--blue-tint); color:var(--blue); }
+.hm-cell.hm-green{ background:var(--green-soft); color:var(--green-ink); }
+.hm-cell.hm-amber{ background:var(--amber-soft); color:var(--amber-ink); }
+.hm-cell.hm-red{ background:var(--red-soft); color:var(--red-ink); }
 
 /* ============================================================
    RESPONSIVO

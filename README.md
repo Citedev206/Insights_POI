@@ -113,7 +113,24 @@ python -m http.server 8000
   = atendido antes pero sin servicio 2023–2025 + media/alta; **recurrente** = resto.
 * AÑO/MES se re-derivan de FECHA cuando está disponible.
 * Un **único filtro global** (Programa · Mes · Especialista) alimenta todos los
-  indicadores, gráficos y tablas de todas las vistas.
+  indicadores, gráficos y tablas de todas las vistas — **excepto CdD-FEST**,
+  que tiene su propio selector de Unidad Productiva y oculta la barra de
+  filtros globales por no aplicarle.
+* **Especialistas**: por defecto muestra **"Todos"** (agregado de todo el
+  equipo); el desplegable "Ver especialista" permite acotar a uno solo. La
+  tabla "Meta de clientes atendidos por especialista" respeta esa elección
+  (si se filtra a uno, solo muestra su fila), pero el reparto de metas
+  (`Nesp`, meta focalizados/no focalizados) siempre se calcula sobre el
+  programa completo.
+* **Cumplimiento por tarea y mes** (heatmap): además del semáforo normal
+  (verde/ámbar/rojo por % de cumplimiento), una tarea/mes **ejecutada sin
+  tener meta programada** se muestra en una celda **gris neutra** con la
+  cantidad ejecutada ("N s/meta") en vez de desaparecer — antes esos
+  registros quedaban invisibles porque los ejes del heatmap solo se armaban
+  con las tareas que tenían meta.
+* **Servicios**: el panel "Meta vs Ejecutado por tarea" tiene un selector de
+  tipo de servicio ("Todos" o uno específico) y muestra las cantidades reales
+  (no solo %) ordenadas de mayor a menor por meta programada.
 
 ## 🧭 Planificador CdD-FEST
 

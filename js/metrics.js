@@ -112,6 +112,10 @@
   }
 
   // ---- HEATMAP: tarea × mes = % cumplimiento --------------------------------
+  // Los ejes (tareas/meses) se arman con la UNIÓN de lo programado (mMeta) y
+  // lo ejecutado (mEjec): una tarea/mes que se ejecutó sin tener meta ya no
+  // desaparece del heatmap — se muestra como celda "sin meta" en color
+  // neutro (ver heatmap() en charts.js) en vez de quedar invisible.
   function heatmapCumplimiento(eje, met) {
     const metaKey = (t, mes) => t + "||" + mes;
     const mMeta = new Map(), mEjec = new Map();
@@ -123,25 +127,33 @@
       const k = metaKey(r[X.TAREA], r[X.MES]);
       mEjec.set(k, (mEjec.get(k) || 0) + (Number(r[X.CANTIDAD]) || 0));
     }
-    const tareaMetaTotal = new Map(), tareas = new Set(), mesesSet = new Set();
-    for (const [k, meta] of mMeta) {
-      if (meta <= 0) continue;
-      const [t, mes] = k.split("||");
-      tareas.add(t); mesesSet.add(+mes);
-      tareaMetaTotal.set(t, (tareaMetaTotal.get(t) || 0) + meta);
-    }
+    const tareaMetaTotal = new Map(), tareaEjecTotal = new Map(), tareas = new Set(), mesesSet = new Set();
+    const addAxis = (map, totMap) => {
+      for (const [k, val] of map) {
+        if (val <= 0) continue;
+        const [t, mes] = k.split("||");
+        tareas.add(t); mesesSet.add(+mes);
+        totMap.set(t, (totMap.get(t) || 0) + val);
+      }
+    };
+    addAxis(mMeta, tareaMetaTotal);
+    addAxis(mEjec, tareaEjecTotal);
     const meses = Array.from(mesesSet).sort((a, b) => a - b);
+    // Orden: por meta total desc (como antes); las tareas "solo ejecución"
+    // (meta total 0) caen al final, desempatadas por lo ejecutado.
     const tareaList = Array.from(tareas).sort((a, b) =>
-      (tareaMetaTotal.get(b) || 0) - (tareaMetaTotal.get(a) || 0));
+      (tareaMetaTotal.get(b) || 0) - (tareaMetaTotal.get(a) || 0) ||
+      (tareaEjecTotal.get(b) || 0) - (tareaEjecTotal.get(a) || 0));
     const rows = tareaList.map((t) => {
       const cells = meses.map((mes) => {
         const meta = mMeta.get(metaKey(t, mes)) || 0;
-        if (meta <= 0) return null;
         const ejec = mEjec.get(metaKey(t, mes)) || 0;
+        if (meta <= 0) return ejec > 0 ? { pct: null, meta: 0, ejec, sinMeta: true } : null;
         return { pct: pct(meta, ejec), meta, ejec };
       });
-      const total = tareaMetaTotal.get(t) || 0;
-      return { label: `${t} (${total.toLocaleString("es-PE")})`, cells };
+      const metaTotal = tareaMetaTotal.get(t) || 0;
+      const ejecTotal = tareaEjecTotal.get(t) || 0;
+      return { label: t, metaTotal, ejecTotal, cells };
     });
     return { meses: meses.map((m) => CFG.MESES_ES[m] || m), rows };
   }

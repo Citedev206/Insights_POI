@@ -23,6 +23,7 @@
   let cddMode = "up";              // modo CdD-FEST: "up" (por unidad) | "general" (todas)
   let cddDrillGrupo = null;        // componente (1-5) elegido en la Vista general para ver su detalle
   let cddDrillActividad = null;    // código de actividad (p. ej. "3.4") elegido dentro del detalle del componente
+  let svcTareaFiltro = null;       // TIPO_SERVICIO elegido en la vista Servicios (null = Todos)
   let lastExport = null;           // datos exportables de la vista activa
 
   // ---- iconografía ----------------------------------------------------------
@@ -46,14 +47,16 @@
   };
   const svgIco = (path) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;
 
+  // `navLabel` = rótulo corto visible debajo del ícono en el riel;
+  // `label`/`sub` (más largos) se usan como subtítulo del topbar y tooltip.
   const NAV = [
-    { id: "ejecutivo", ico: I.grid, label: "Resumen ejecutivo", sub: "Meta vs Ejecución · visión general" },
-    { id: "especialistas", ico: I.user, label: "Especialistas", sub: "Cumplimiento individual · tareas por mes" },
-    { id: "programas", ico: I.folder, label: "Programas", sub: "Ejecución por programa presupuestal" },
-    { id: "clientes", ico: I.building, label: "Clientes", sub: "Nuevos · reenganchados · focalizados" },
-    { id: "servicios", ico: I.puzzle, label: "Servicios", sub: "Estructura y cumplimiento de servicios" },
-    { id: "calendario", ico: I.calendar, label: "Calendario de atención", sub: "Días de atención por empresa · calendario mensual" },
-    { id: "cddfest", ico: I.compass, label: "CdD-FEST", sub: "Radar ICE · orden recomendado · línea de tiempo por componente" },
+    { id: "ejecutivo", ico: I.grid, navLabel: "Resumen", label: "Resumen ejecutivo", sub: "Meta vs Ejecución · visión general" },
+    { id: "especialistas", ico: I.user, navLabel: "Especialistas", label: "Especialistas", sub: "Cumplimiento individual · tareas por mes" },
+    { id: "clientes", ico: I.building, navLabel: "Clientes", label: "Clientes", sub: "Nuevos · reenganchados · focalizados" },
+    { id: "servicios", ico: I.puzzle, navLabel: "Servicios", label: "Servicios", sub: "Estructura y cumplimiento de servicios" },
+    { id: "calendario", ico: I.calendar, navLabel: "Calendario", label: "Calendario de atención", sub: "Días de atención por empresa · calendario mensual" },
+    { id: "cddfest", ico: I.compass, navLabel: "CdD-FEST", label: "CdD-FEST", sub: "Radar ICE · orden recomendado · línea de tiempo por componente" },
+    { id: "programas", ico: I.folder, navLabel: "Programas", label: "Programas", sub: "Ejecución por programa presupuestal" },
   ];
 
   const PROG_COLORS = [COL.accent, COL.blue, COL.mid, COL.purple, COL.soft, "#C77DC7", "#5FA0E0"];
@@ -371,10 +374,12 @@
       ...metG.map((r) => r[CFG.M.ESPECIALISTA]),
     ].filter((v) => v != null && v !== ""))).sort((a, b) => String(a).localeCompare(b, "es"));
     if (!nombres.length) return noData("No hay especialistas con los filtros actuales.");
-    if (!espSel || !nombres.includes(espSel)) espSel = nombres[0];
+    // `espSel` vacío/null = "Todos" (default). Solo se reinicia si el nombre
+    // seleccionado ya no existe con los filtros actuales.
+    if (espSel && !nombres.includes(espSel)) espSel = null;
 
-    const eje = ejeG.filter((r) => r[CFG.X.ESPECIALISTA] === espSel);
-    const met = metG.filter((r) => r[CFG.M.ESPECIALISTA] === espSel);
+    const eje = espSel ? ejeG.filter((r) => r[CFG.X.ESPECIALISTA] === espSel) : ejeG;
+    const met = espSel ? metG.filter((r) => r[CFG.M.ESPECIALISTA] === espSel) : metG;
     const k = MT.kpis(eje, met);
     const hm = MT.heatmapCumplimiento(eje, met);
     const tm = MT.tendenciaMensual(eje, met);
@@ -382,8 +387,10 @@
     const porComp = MT.metaVsEjec(eje, met, CFG.X.COMPLEJIDAD, CFG.M.COMPLEJIDAD, CFG.COMPLEJIDADES);
 
     const selector = `<div class="selectrow"><label>Ver especialista</label>
-      <select class="pick" id="esp-pick">${nombres.map((n) =>
-      `<option ${n === espSel ? "selected" : ""}>${esc(n)}</option>`).join("")}</select></div>`;
+      <select class="pick" id="esp-pick">
+        <option value="" ${!espSel ? "selected" : ""}>Todos</option>
+        ${nombres.map((n) => `<option value="${esc(n)}" ${n === espSel ? "selected" : ""}>${esc(n)}</option>`).join("")}
+      </select></div>`;
 
     const kpis = [
       kpiCard({
@@ -406,12 +413,12 @@
     ].join("");
 
     return `
-      ${sectionHead("Resumen del especialista", espSel)}
+      ${sectionHead(espSel ? "Resumen del especialista" : "Resumen de especialistas", espSel || "Todos los especialistas")}
       ${selector}
       <section class="grid grid-kpi">${kpis}</section>
       ${panel("Cumplimiento por tarea y mes", "Semáforo de avance (% ejecutado sobre meta)", CH.heatmap(hm) + legendSemaforo)}
       <section class="grid g-2">
-        ${panel("Evolución mensual", "Meta vs Ejecutado", CH.barsVertical(tm.map((r) => ({ label: r.Mes, a: r.Ejecutado, b: r.Meta })), { nameA: "Ejecutado", nameB: "Meta" }), legendMetaEjec)}
+        ${panel("Evolución mensual", "Meta vs Ejecutado", CH.barsVertical(tm.map((r) => ({ label: r.Mes, a: r.Ejecutado, b: r.Meta })), { nameA: "Ejecutado", nameB: "Meta", capLimit: 12 }), legendMetaEjec)}
         ${panel("Meta vs Ejecutado por complejidad", "", CH.barsMetaEjec(porComp, { gutter: 90 }), legendMetaEjec)}
       </section>
       ${panel("Meta vs Ejecutado por programa", "", CH.barsMetaEjec(porProg, { gutter: 140 }), legendMetaEjec)}
@@ -428,9 +435,8 @@
 
   function afterEspecialistas() {
     const pick = document.getElementById("esp-pick");
-    if (pick) pick.addEventListener("change", (e) => { espSel = e.target.value; renderView(); });
+    if (pick) pick.addEventListener("change", (e) => { espSel = e.target.value || null; renderView(); });
     const { eje: ejeG, met: metG } = currentData();
-    if (!espSel) return;
 
     // --- Meta de clientes atendidos por especialista (todos · alcance POI) ---
     const ejePoi = clientesScopedEje(ejeG);
@@ -439,13 +445,17 @@
     const metCli = D.filtrarClientes(STORE, FILTER);
     const kc = MT.kpisClientes(ejePoi, metCli);
     const metaNoFoc = Math.max(kc.meta_clientes - kc.meta_focalizados, 0);
+    // Nesp/targets siempre se calculan sobre el pool completo de especialistas
+    // con meta (para que el subtítulo describa el programa entero); solo las
+    // filas mostradas se acotan al especialista elegido (si hay uno).
     const cme = MT.clientesMetaEspecialistas(ejePoi, espsConMeta, kc.meta_focalizados, metaNoFoc);
+    const cmeRows = espSel ? cme.rows.filter((r) => r.esp === espSel) : cme.rows;
     const cliMetaEl = document.getElementById("tbl-cli-meta");
     if (cliMetaEl) {
       mountTable(cliMetaEl, {
         title: "Meta de clientes atendidos por especialista",
         sub: `Alcance POI · cada cliente cuenta para quien lo atendió primero · meta repartida entre ${cme.Nesp} especialistas con metas (foc ${fmt1(cme.targetFoc)} · no foc ${fmt1(cme.targetNoFoc)} c/u)`,
-        searchPlaceholder: "Buscar especialista…", searchKeys: ["esp"], rows: cme.rows,
+        searchPlaceholder: "Buscar especialista…", searchKeys: ["esp"], rows: cmeRows,
         pageSize: 16, totalLabel: " especialistas",
         columns: [
           { label: "Especialista", cls: "name", render: (r) => esc(r.esp) + (r.tieneMeta ? "" : ` <span class="badge neutral"><i></i>sin meta</span>`) },
@@ -456,11 +466,11 @@
       });
     }
 
-    const eje = ejeG.filter((r) => r[CFG.X.ESPECIALISTA] === espSel);
+    const eje = espSel ? ejeG.filter((r) => r[CFG.X.ESPECIALISTA] === espSel) : ejeG;
     const cl = MT.clientesResumen(eje, STORE.bd);
     const rows = cl.tabla.slice().sort((a, b) => b.Servicios - a.Servicios);
     lastExport = {
-      filename: `clientes_${espSel}.csv`,
+      filename: `clientes_${espSel || "todos"}.csv`,
       columns: ["RUC", "Razón social", "Clasificación", "Focalizado", "Meses", "Servicios"],
       rows: rows.map((r) => [r.RUC, r.Razon, r.Tipo, r.Focalizado ? "Sí" : "No", r.Meses, Math.round(r.Servicios)])
     };
@@ -603,7 +613,7 @@
         ${panel("Focalización", "Focalizados vs no focalizados", CH.donut(focSegs, fmt(cl.total), "clientes") + CH.legendList(focSegs))}
       </section>
       <section class="grid g-2">
-        ${panel("Clientes atendidos por mes", "Nuevos + recurrentes", CH.barsVertical(stackRows, { stacked: true, colA: COL.accent, colB: COL.soft, nameA: "Nuevos", nameB: "Recurrentes" }),
+        ${panel("Clientes atendidos por mes", "Nuevos vs recurrentes", CH.barsVertical(stackRows, { colA: COL.accent, colB: COL.soft, nameA: "Nuevos", nameB: "Recurrentes", capLimit: 12 }),
       `<div class="chart-legend"><span><i style="background:${COL.accent}"></i>Nuevos</span><span><i style="background:${COL.soft}"></i>Recurrentes</span></div>`)}
         ${panel("Ranking de empresas", "Top 15 por servicios · morado = focalizada", CH.barsSimple(rk, { gutter: 200, rowH: 26 }))}
       </section>
@@ -669,18 +679,31 @@
       }),
     ].join("");
 
-    // === "Estructura de la ejecución" — Meta vs Ejecutado por complejidad + brechas ===
-    const brecha = porServ.filter((r) => r.Meta > 0).slice()
-      .sort((a, b) => b.Brecha - a.Brecha).slice(0, 8)
-      .map((r) => ({ label: r.Dim, value: r.Brecha, color: CH.semColor(r.Cumplimiento) }));
+    // === Meta vs Ejecutado por tarea, filtrable por tipo de servicio ===
+    // "Todos" reutiliza porTarea (ya calculado sobre todo eje/met); al elegir
+    // un servicio se recalcula MT.metaVsEjec solo sobre las filas de ese
+    // servicio. Ordenado descendente por Meta (mayor volumen programado primero).
+    const svcTipos = porServ.map((r) => r.Dim);
+    if (svcTareaFiltro && !svcTipos.includes(svcTareaFiltro)) svcTareaFiltro = null;
+    const porTareaF = (svcTareaFiltro
+      ? MT.metaVsEjec(
+        eje.filter((r) => r[CFG.X.SERVICIO] === svcTareaFiltro),
+        met.filter((r) => r[CFG.M.SERVICIO] === svcTareaFiltro),
+        CFG.X.TAREA, CFG.M.TAREA)
+      : porTarea).slice().sort((a, b) => b.Meta - a.Meta);
+    const svcSelector = `<div class="selectrow" style="margin:0"><label>Filtrar por servicio</label>
+      <select class="pick" id="svc-tarea-pick">
+        <option value="" ${!svcTareaFiltro ? "selected" : ""}>Todos</option>
+        ${svcTipos.map((s) => `<option value="${esc(s)}" ${s === svcTareaFiltro ? "selected" : ""}>${esc(s)}</option>`).join("")}
+      </select></div>`;
 
     return `
       ${sectionHead("Indicadores de servicios", "Volumen y cumplimiento")}
       <section class="grid grid-kpi">${kpis}</section>
-      ${sectionHead("Estructura de la ejecución", "Meta vs ejecución por complejidad y brechas para la toma de decisiones")}
+      ${sectionHead("Estructura de la ejecución", "Meta vs ejecución por complejidad y por tarea para la toma de decisiones")}
       <section class="grid g-2">
         ${panel("Meta vs Ejecutado por complejidad", "Cantidad programada vs ejecutada · Alta · Media · Baja", CH.barsMetaEjec(porComp, { gutter: 90 }), legendMetaEjec)}
-        ${panel("Servicios con mayor brecha", "Meta no ejecutada (Top 8) · prioridad de atención", brecha.length ? CH.barsSimple(brecha, { gutter: 200 }) : CH.empty("Sin brechas: metas cumplidas"))}
+        ${panel("Meta vs Ejecutado por tarea", "Cantidades programadas vs ejecutadas · ordenado por meta", porTareaF.length ? CH.barsMetaEjec(porTareaF, { gutter: 170 }) : CH.empty("Sin tareas para este servicio"), svcSelector)}
       </section>
       ${sectionHead("Cumplimiento por servicio y por tarea")}
       <section class="grid g-2">
@@ -688,6 +711,11 @@
         ${panel("% por tipo de tarea", "", CH.barsSemaforo(porTarea, { gutter: 170 }), legendSemaforo)}
       </section>
       ${panel("Meta vs Ejecutado por servicio", "", CH.barsMetaEjec(porServ.slice().sort((a, b) => b.Ejecutado - a.Ejecutado), { gutter: 170 }), legendMetaEjec)}`;
+  }
+
+  function afterServicios() {
+    const pick = document.getElementById("svc-tarea-pick");
+    if (pick) pick.addEventListener("change", (e) => { svcTareaFiltro = e.target.value || null; renderView(); });
   }
 
   // ---- CALENDARIO: dos modos (empresa atendida / puntos de intervención) ---
@@ -1382,7 +1410,7 @@
     especialistas: { render: viewEspecialistas, after: afterEspecialistas },
     programas: { render: viewProgramas, after: null },
     clientes: { render: viewClientes, after: afterClientes },
-    servicios: { render: viewServicios, after: null },
+    servicios: { render: viewServicios, after: afterServicios },
     calendario: { render: viewCalendario, after: afterCalendario },
     cddfest: { render: viewCddFest, after: afterCddFest },
   };
@@ -1392,6 +1420,10 @@
     document.getElementById("view-sub").textContent = nav.sub;
     document.querySelectorAll(".rail-btn").forEach((b) =>
       b.classList.toggle("active", b.dataset.view === VIEW));
+    // CdD-FEST tiene su propio selector y no usa los filtros globales
+    // (Programa/Mes/Especialista) — se oculta la barra en esa pestaña.
+    const fb = document.getElementById("filterbar");
+    if (fb) fb.style.display = (VIEW === "cddfest") ? "none" : "";
     const host = document.getElementById("view");
     lastExport = null;
     host.className = "view";
@@ -1514,11 +1546,12 @@
     const rail = document.getElementById("rail-nav");
     rail.innerHTML = NAV.map((n) =>
       `<button class="rail-btn ${n.id === VIEW ? "active" : ""}" data-view="${n.id}">
-        ${svgIco(n.ico)}<span class="tip">${esc(n.label)}</span></button>`).join("");
+        ${svgIco(n.ico)}<span class="rail-label">${esc(n.navLabel || n.label)}</span><span class="tip">${esc(n.label)}</span></button>`).join("");
     rail.querySelectorAll(".rail-btn").forEach((b) =>
       b.addEventListener("click", () => {
         VIEW = b.dataset.view;
         if (VIEW !== "especialistas") espSel = null;
+        if (VIEW !== "servicios") svcTareaFiltro = null;
         if (VIEW !== "cddfest") { cddSel = null; cddMode = "up"; cddDrillGrupo = null; cddDrillActividad = null; }
         location.hash = VIEW;
         renderView();
@@ -1562,6 +1595,7 @@
     if (NAV.some((n) => n.id === h) && h !== VIEW) {
       VIEW = h;
       if (VIEW !== "especialistas") espSel = null;
+      if (VIEW !== "servicios") svcTareaFiltro = null;
       if (VIEW !== "cddfest") { cddSel = null; cddMode = "up"; cddDrillGrupo = null; cddDrillActividad = null; }
       renderView();
     }

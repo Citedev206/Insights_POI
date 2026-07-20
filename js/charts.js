@@ -264,18 +264,33 @@
     if (!hm || !hm.rows.length) return empty("Sin metas por tarea para el periodo");
     const cellColor = (v) => v == null ? "transparent" : semColor(typeof v === "object" ? v.pct : v);
     const head = `<div class="hm-row hm-head"><div class="hm-lab"></div>${hm.meses.map((m) => `<div class="hm-cell hm-mes">${esc(m)}</div>`).join("")}</div>`;
-    const body = hm.rows.map((r) => `
+    const body = hm.rows.map((r) => {
+      const pctTotal = r.metaTotal > 0 ? Math.round((r.ejecTotal / r.metaTotal) * 100) : null;
+      const numTxt = r.metaTotal > 0 ? `${pctTotal}% (${fmt(r.ejecTotal)}/${fmt(r.metaTotal)})` : `${fmt(r.ejecTotal)} s/m`;
+      const fullTitle = `${r.label} | ${r.metaTotal > 0 ? 'Prog: ' + fmt(r.metaTotal) + ' Ejec: ' + fmt(r.ejecTotal) : 'Sin meta'}`;
+      return `
       <div class="hm-row">
-        <div class="hm-lab" title="${esc(r.label)}">${esc(r.label)}</div>
+        <div class="hm-lab" title="${esc(fullTitle)}">
+          <span class="hm-lab-t">${esc(r.label)}</span>
+          <span class="hm-lab-n">${numTxt}</span>
+        </div>
         ${r.cells.map((v) => {
       if (v == null) return `<div class="hm-cell" style="background:transparent"></div>`;
       const cell = typeof v === "object" ? v : { pct: v, meta: null, ejec: null };
-      const bg = semColor(cell.pct);
+      // Ejecutado sin meta programada: celda neutra (no semáforo), muestra
+      // solo la cantidad ejecutada en vez de un % de cumplimiento.
+      if (cell.sinMeta || cell.pct == null) {
+        return `<div class="hm-cell hm-nometa" title="Sin meta · Ejecutado ${fmt(cell.ejec)}">
+          <span class="hm-pct">—</span><span class="hm-detail">${fmt(cell.ejec)} s/meta</span></div>`;
+      }
+      const tone = global.POI.semaforo(cell.pct);
+      const cssTone = tone === "verde" ? "green" : tone === "amarillo" ? "amber" : "red";
       const pctTxt = Math.round(cell.pct) + "%";
       const detail = cell.meta != null ? `<span class="hm-detail">${fmt(cell.ejec)}/${fmt(cell.meta)}</span>` : "";
-      return `<div class="hm-cell" style="background:${bg}" title="${pctTxt}${cell.meta != null ? ` · Ejec ${fmt(cell.ejec)} / Prog ${fmt(cell.meta)}` : ""}"><span class="hm-pct">${pctTxt}</span>${detail}</div>`;
+      return `<div class="hm-cell hm-${cssTone}" title="${pctTxt}${cell.meta != null ? ` · Ejec ${fmt(cell.ejec)} / Prog ${fmt(cell.meta)}` : ""}"><span class="hm-pct">${pctTxt}</span>${detail}</div>`;
     }).join("")}
-      </div>`).join("");
+      </div>`;
+    }).join("");
     return `<div class="hm-scroll"><div class="heatmap" style="--hm-cols:${hm.meses.length}">${head}${body}</div></div>`;
   }
 
