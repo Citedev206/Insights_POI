@@ -685,10 +685,14 @@
     // servicio. Ordenado descendente por Meta (mayor volumen programado primero).
     const svcTipos = porServ.map((r) => r.Dim);
     if (svcTareaFiltro && !svcTipos.includes(svcTareaFiltro)) svcTareaFiltro = null;
+    // Comparar normalizado (MT.normKey): el Dim de porServ ya viene
+    // normalizado (espacios colapsados/recortados), pero el valor crudo de
+    // cada fila puede traer variaciones de espacio — sin esto, algunas filas
+    // "del mismo servicio" quedarían fuera del filtro.
     const porTareaF = (svcTareaFiltro
       ? MT.metaVsEjec(
-        eje.filter((r) => r[CFG.X.SERVICIO] === svcTareaFiltro),
-        met.filter((r) => r[CFG.M.SERVICIO] === svcTareaFiltro),
+        eje.filter((r) => MT.normKey(r[CFG.X.SERVICIO]) === svcTareaFiltro),
+        met.filter((r) => MT.normKey(r[CFG.M.SERVICIO]) === svcTareaFiltro),
         CFG.X.TAREA, CFG.M.TAREA)
       : porTarea).slice().sort((a, b) => b.Meta - a.Meta);
     const svcSelector = `<div class="selectrow" style="margin:0"><label>Filtrar por servicio</label>

@@ -103,6 +103,16 @@ python -m http.server 8000
 > Las cabeceras se normalizan a MAYÚSCULAS y sin espacios al cargar, así que
 > pequeñas variaciones de formato no rompen el tablero. Los programas, meses y
 > especialistas de los filtros se derivan automáticamente de los datos.
+>
+> Los **valores** de texto usados para agrupar (TIPO_TAREA, TIPO_SERVICIO,
+> PROGRAMA, COMPLEJIDAD) también se normalizan (`MT.normKey` en
+> `js/metrics.js`: recorta espacios y colapsa dobles espacios) antes de
+> usarse como categoría. Sin esto, una misma tarea escrita con un espacio de
+> más en `ejecucion.xlsx` o `metas.xlsx` generaba una **fila/categoría
+> duplicada** (invisible a simple vista, porque el navegador colapsa los
+> espacios al mostrar texto, pero eran claves distintas internamente) — por
+> ejemplo en el heatmap de "Cumplimiento por tarea y mes" o en los paneles
+> de Servicios.
 
 ## 🧮 Reglas implementadas
 

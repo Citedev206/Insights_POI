@@ -11,11 +11,21 @@
   const round1 = (n) => Math.round(n * 10) / 10;
   function pct(meta, ejec) { return meta ? round1((ejec / meta) * 100) : 0; }
 
+  // Normaliza espacios en valores de texto (TIPO_TAREA, TIPO_SERVICIO, etc.)
+  // usados como clave de agrupación: colapsa espacios internos repetidos y
+  // recorta los de los extremos. Sin esto, "Tarea X " (con espacio de más en
+  // ejecucion.xlsx o metas.xlsx) genera una fila/categoría DUPLICADA que se
+  // ve idéntica en pantalla (el navegador colapsa espacios al mostrar texto)
+  // pero cuenta como una clave distinta. No toca valores no-texto (MES, etc.)
+  function normKey(v) {
+    return typeof v === "string" ? v.replace(/\s+/g, " ").trim() : v;
+  }
+
   // ---- helpers de agregación ------------------------------------------------
   function sumBy(rows, keyCol, valCol) {
     const m = new Map();
     for (const r of rows) {
-      const k = r[keyCol];
+      const k = normKey(r[keyCol]);
       m.set(k, (m.get(k) || 0) + (Number(r[valCol]) || 0));
     }
     return m; // Map(key -> suma)
@@ -120,11 +130,11 @@
     const metaKey = (t, mes) => t + "||" + mes;
     const mMeta = new Map(), mEjec = new Map();
     for (const r of met) {
-      const k = metaKey(r[M.TAREA], r[M.MES]);
+      const k = metaKey(normKey(r[M.TAREA]), r[M.MES]);
       mMeta.set(k, (mMeta.get(k) || 0) + (Number(r[M.META]) || 0));
     }
     for (const r of eje) {
-      const k = metaKey(r[X.TAREA], r[X.MES]);
+      const k = metaKey(normKey(r[X.TAREA]), r[X.MES]);
       mEjec.set(k, (mEjec.get(k) || 0) + (Number(r[X.CANTIDAD]) || 0));
     }
     const tareaMetaTotal = new Map(), tareaEjecTotal = new Map(), tareas = new Set(), mesesSet = new Set();
@@ -617,6 +627,6 @@
     componenteGrupo, iceBrechas, ordenRecomendado, cddFestUnidades,
     cddFestResumenComponentes, cddFestDetalleComponente, reglaDuracion,
     metaMinimaComponente,
-    sumBy, uniqueCountBy, nunique, sumCol,
+    sumBy, uniqueCountBy, nunique, sumCol, normKey,
   };
 })(window);
