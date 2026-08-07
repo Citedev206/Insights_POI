@@ -79,7 +79,9 @@ python -m http.server 8000
 
 * **ejecucion.xlsx**: `ID_ACTIVIDAD, FECHA, AÑO, MES, SEMANA, PROGRAMA,
   ESPECIALISTA, RUC, RAZON_SOCIAL, TIPO_SERVICIO, TIPO_TAREA, COMPLEJIDAD
-  (Alta/Media/Baja), CANTIDAD, FUENTE` (opcional: `TEMA_ABORDADO`)
+  (Alta/Media/Baja), CANTIDAD, FUENTE` (opcional: `TEMA_ABORDADO`,
+  `TIPO_CONTRIBUYENTE` — alimenta la "Clasificación de cliente" en las
+  vistas Clientes/Especialistas)
 * **metas.xlsx**: `ID_META, AÑO, MES, PROGRAMA, ESPECIALISTA, TIPO_SERVICIO,
   TIPO_TAREA, COMPLEJIDAD, META_CANTIDAD, META_FOCALIZADOS`
 * **focalizados.xlsx**: `RUC, RAZON_SOCIAL, TIPO`

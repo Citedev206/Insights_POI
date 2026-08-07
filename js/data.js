@@ -30,6 +30,7 @@
       RAZON: "RAZON_SOCIAL", SERVICIO: "TIPO_SERVICIO", TAREA: "TIPO_TAREA",
       COMPLEJIDAD: "COMPLEJIDAD", CANTIDAD: "CANTIDAD", FUENTE: "FUENTE",
       TEMA: "TEMA_ABORDADO", COMPONENTE: "COMPONENTE",
+      TIPO_CONTRIB: "TIPO_CONTRIBUYENTE",
     },
     // Metas
     M: {
@@ -75,19 +76,19 @@
     // no es una meta por UP individual, sirve de referencia para el "mínimo"
     // que se muestra en la Vista general.
     ACTIVIDADES: {
-      "1.1": { nombre: "Medición del Índice de Competitividad", especialista: "Lita Castillo", meta: 100 },
-      "2.1": { nombre: "Gestión tecnológica empresarial", especialista: "Mitzuko Quispe", meta: 54 },
-      "3.1": { nombre: "Diseño y desarrollo de productos", especialista: "Willy Arredondo", meta: 54 },
-      "3.2": { nombre: "Diseño y desarrollo de productos textiles", especialista: "Eusebio Coanqui", meta: 27 },
-      "3.3": { nombre: "Propuestas innovadoras de productos textiles", especialista: "Diseñadora", meta: 27 },
-      "3.4": { nombre: "Tinturación y acabados húmedos", especialista: "Erika Turpo", meta: 27 },
-      "3.5": { nombre: "Soporte productivo en teñido", especialista: "Lita Castillo", meta: 27 },
-      "3.6": { nombre: "Soporte productivo en acabados", especialista: "Lita Castillo", meta: 27 },
-      "3.7": { nombre: "Ensayos de laboratorio", especialista: "Miriam Pari", meta: 5 },
-      "4.1": { nombre: "Marketing digital", especialista: "Luis Valencia", meta: 27 },
-      "4.2": { nombre: "Herramientas digitales y tecnología", especialista: "Ruth Arce", meta: 27 },
-      "4.3": { nombre: "Diseño de envases y empaques", especialista: "Henry Gutiérrez", meta: 27 },
-      "5.1": { nombre: "Comercio internacional", especialista: "Cynthia Perez", meta: 18 },
+      "1.1": { nombre: "Medición del Índice de Competitividad", especialista: "LITA CASTILLO", meta: 100 },
+      "2.1": { nombre: "Gestión tecnológica empresarial", especialista: "MITZUKO QUISPE", meta: 54 },
+      "3.1": { nombre: "Diseño y desarrollo de productos", especialista: "WILLY ARREDONDO", meta: 54 },
+      "3.2": { nombre: "Diseño y desarrollo de productos textiles", especialista: "EUSEBIO COANQUI", meta: 54 },
+      "3.3": { nombre: "Propuestas innovadoras de productos textiles", especialista: "DISEÑADORA", meta: 27 },
+      "3.4": { nombre: "Tinturación y acabados húmedos", especialista: "ERIKA TURPO", meta: 27 },
+      "3.5": { nombre: "Soporte productivo en teñido", especialista: "LITA CASTILLO", meta: 27 },
+      "3.6": { nombre: "Soporte productivo en acabados", especialista: "LITA CASTILLO", meta: 27 },
+      "3.7": { nombre: "Ensayos de laboratorio", especialista: "MIRIAM PARI", meta: 5 },
+      "4.1": { nombre: "Marketing digital", especialista: "LUIS VALENCIA", meta: 27 },
+      "4.2": { nombre: "Herramientas digitales y tecnología", especialista: "RUTH ARCE", meta: 27 },
+      "4.3": { nombre: "Diseño de envases y empaques", especialista: "HENRY GUTIERREZ", meta: 27 },
+      "5.1": { nombre: "Comercio internacional", especialista: "CYNTHIA PEREZ", meta: 18 },
     },
 
     // ---- CdD-FEST: dimensiones del ICE (results_ice.xlsx) -----------------
@@ -253,6 +254,8 @@
       o[X.RUC] = normRuc(o[X.RUC]);
       o[X.CANTIDAD] = toNum(o[X.CANTIDAD]);
       o[X.COMPLEJIDAD] = normComplejidad(o[X.COMPLEJIDAD]);
+      o[X.TIPO_CONTRIB] = o[X.TIPO_CONTRIB] != null && String(o[X.TIPO_CONTRIB]).trim() !== ""
+        ? String(o[X.TIPO_CONTRIB]).trim() : null;
       const f = parseFecha(o[X.FECHA]);
       if (f) { o[X.ANIO] = f.getFullYear(); o[X.MES] = f.getMonth() + 1; o[X.FECHA] = f; }
       o[X.MES] = toInt(o[X.MES]);

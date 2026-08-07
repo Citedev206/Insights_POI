@@ -16,7 +16,6 @@
   let META = { updated: null };
   const FILTER = { programas: [], meses: [], especialistas: [] };
   let VIEW = "ejecutivo";
-  let espSel = null;               // drill-down de la vista Especialistas
   let cliSel = null;               // empresa seleccionada en el Calendario
   let calMode = "empresa";         // modo del calendario: "empresa" | "intervencion"
   let cddSel = null;               // Unidad Productiva seleccionada en CdD-FEST
@@ -231,6 +230,14 @@
   // =========================================================================
   function currentData() { return D.aplicar(STORE, FILTER); }
 
+  // Especialista "en foco" para la vista Especialistas: se deriva del filtro
+  // global (barra de Filtros) en vez de tener un selector propio duplicado —
+  // si el usuario elige exactamente un especialista ahí, esta vista muestra
+  // su detalle individual; con 0 o 2+ seleccionados, muestra el agregado.
+  function espSelActual() {
+    return FILTER.especialistas && FILTER.especialistas.length === 1 ? FILTER.especialistas[0] : null;
+  }
+
   // Sin filtro de programa, limita al programa principal (POI). Con filtro,
   // respeta el filtro. Sirve para que clientes (atendidos + meta) usen el
   // mismo alcance POI por defecto.
@@ -368,29 +375,18 @@
 
   // ---- ESPECIALISTAS --------------------------------------------------------
   function viewEspecialistas() {
-    const { eje: ejeG, met: metG } = currentData();
-    const nombres = Array.from(new Set([
-      ...ejeG.map((r) => r[CFG.X.ESPECIALISTA]),
-      ...metG.map((r) => r[CFG.M.ESPECIALISTA]),
-    ].filter((v) => v != null && v !== ""))).sort((a, b) => String(a).localeCompare(b, "es"));
-    if (!nombres.length) return noData("No hay especialistas con los filtros actuales.");
-    // `espSel` vacío/null = "Todos" (default). Solo se reinicia si el nombre
-    // seleccionado ya no existe con los filtros actuales.
-    if (espSel && !nombres.includes(espSel)) espSel = null;
-
-    const eje = espSel ? ejeG.filter((r) => r[CFG.X.ESPECIALISTA] === espSel) : ejeG;
-    const met = espSel ? metG.filter((r) => r[CFG.M.ESPECIALISTA] === espSel) : metG;
+    const { eje, met } = currentData();
+    if (!eje.length && !met.length) return noData("No hay especialistas con los filtros actuales.");
+    const espSel = espSelActual();
     const k = MT.kpis(eje, met);
     const hm = MT.heatmapCumplimiento(eje, met);
     const tm = MT.tendenciaMensual(eje, met);
     const porProg = MT.metaVsEjec(eje, met, CFG.X.PROGRAMA, CFG.M.PROGRAMA);
     const porComp = MT.metaVsEjec(eje, met, CFG.X.COMPLEJIDAD, CFG.M.COMPLEJIDAD, CFG.COMPLEJIDADES);
 
-    const selector = `<div class="selectrow"><label>Ver especialista</label>
-      <select class="pick" id="esp-pick">
-        <option value="" ${!espSel ? "selected" : ""}>Todos</option>
-        ${nombres.map((n) => `<option value="${esc(n)}" ${n === espSel ? "selected" : ""}>${esc(n)}</option>`).join("")}
-      </select></div>`;
+    const hint = espSel
+      ? ""
+      : `<div class="selectrow"><span class="muted" style="font-size:.78rem">Elige un especialista en el filtro <strong>Especialista</strong> de la barra superior para ver su detalle individual.</span></div>`;
 
     const kpis = [
       kpiCard({
@@ -414,7 +410,7 @@
 
     return `
       ${sectionHead(espSel ? "Resumen del especialista" : "Resumen de especialistas", espSel || "Todos los especialistas")}
-      ${selector}
+      ${hint}
       <section class="grid grid-kpi">${kpis}</section>
       ${panel("Cumplimiento por tarea y mes", "Semáforo de avance (% ejecutado sobre meta)", CH.heatmap(hm) + legendSemaforo)}
       <section class="grid g-2">
@@ -434,45 +430,62 @@
   }
 
   function afterEspecialistas() {
-    const pick = document.getElementById("esp-pick");
-    if (pick) pick.addEventListener("change", (e) => { espSel = e.target.value || null; renderView(); });
     const { eje: ejeG, met: metG } = currentData();
+    const espSel = espSelActual();
+    // CdD-FEST tiene metas individuales por especialista (metas.xlsx) y no
+    // distingue focalización — se muestra una tabla propia en vez de la
+    // repartición de meta de clientes de POI.
+    const isCddFestOnly = FILTER.programas && FILTER.programas.length === 1 && FILTER.programas[0] === "CdD-FEST";
 
-    // --- Meta de clientes atendidos por especialista (todos · alcance POI) ---
-    const ejePoi = clientesScopedEje(ejeG);
-    const metPoi = scopeMainPrograma(metG, CFG.M.PROGRAMA);
-    const espsConMeta = new Set(metPoi.map((r) => r[CFG.M.ESPECIALISTA]).filter((v) => v != null && v !== ""));
-    const metCli = D.filtrarClientes(STORE, FILTER);
-    const kc = MT.kpisClientes(ejePoi, metCli);
-    const metaNoFoc = Math.max(kc.meta_clientes - kc.meta_focalizados, 0);
-    // Nesp/targets siempre se calculan sobre el pool completo de especialistas
-    // con meta (para que el subtítulo describa el programa entero); solo las
-    // filas mostradas se acotan al especialista elegido (si hay uno).
-    const cme = MT.clientesMetaEspecialistas(ejePoi, espsConMeta, kc.meta_focalizados, metaNoFoc);
-    const cmeRows = espSel ? cme.rows.filter((r) => r.esp === espSel) : cme.rows;
     const cliMetaEl = document.getElementById("tbl-cli-meta");
     if (cliMetaEl) {
-      mountTable(cliMetaEl, {
-        title: "Meta de clientes atendidos por especialista",
-        sub: `Alcance POI · cada cliente cuenta para quien lo atendió primero · meta repartida entre ${cme.Nesp} especialistas con metas (foc ${fmt1(cme.targetFoc)} · no foc ${fmt1(cme.targetNoFoc)} c/u)`,
-        searchPlaceholder: "Buscar especialista…", searchKeys: ["esp"], rows: cmeRows,
-        pageSize: 16, totalLabel: " especialistas",
-        columns: [
-          { label: "Especialista", cls: "name", render: (r) => esc(r.esp) + (r.tieneMeta ? "" : ` <span class="badge neutral"><i></i>sin meta</span>`) },
-          { label: "Focalizados (aten / meta)", render: (r) => metaCell(r.foc, r.metaFoc, r.tieneMeta) },
-          { label: "No focalizados (aten / meta)", render: (r) => metaCell(r.nofoc, r.metaNoFoc, r.tieneMeta) },
-          { label: "Total", cls: "num strong", render: (r) => fmt(r.total) },
-        ],
-      });
+      if (isCddFestOnly) {
+        const cddRows = MT.cddFestMetaEspecialistas(ejeG);
+        const cddRowsShown = espSel ? cddRows.filter((r) => r.esp === espSel) : cddRows;
+        mountTable(cliMetaEl, {
+          title: "Meta de Unidades Productivas (UP) atendidas por especialista",
+          sub: "Alcance CdD-FEST · meta institucional de sus actividades (catálogo CFG.ACTIVIDADES) atribuida al especialista responsable · cada UP cuenta una sola vez sin importar cuántos servicios recibió",
+          searchPlaceholder: "Buscar especialista…", searchKeys: ["esp"], rows: cddRowsShown,
+          pageSize: 16, totalLabel: " especialistas",
+          columns: [
+            { label: "Especialista", cls: "name", render: (r) => esc(r.esp) + (r.tieneMeta ? "" : ` <span class="badge neutral"><i></i>sin meta</span>`) },
+            { label: "UP atendidas (aten / meta)", render: (r) => metaCell(r.atendido, r.meta, r.tieneMeta) },
+          ],
+        });
+      } else {
+        // --- Meta de clientes atendidos por especialista (todos · alcance POI) ---
+        const ejePoi = clientesScopedEje(ejeG);
+        const metPoi = scopeMainPrograma(metG, CFG.M.PROGRAMA);
+        const espsConMeta = new Set(metPoi.map((r) => r[CFG.M.ESPECIALISTA]).filter((v) => v != null && v !== ""));
+        const metCli = D.filtrarClientes(STORE, FILTER);
+        const kc = MT.kpisClientes(ejePoi, metCli);
+        const metaNoFoc = Math.max(kc.meta_clientes - kc.meta_focalizados, 0);
+        // Nesp/targets siempre se calculan sobre el pool completo de especialistas
+        // con meta (para que el subtítulo describa el programa entero); solo las
+        // filas mostradas se acotan al especialista elegido (si hay uno).
+        const cme = MT.clientesMetaEspecialistas(ejePoi, espsConMeta, kc.meta_focalizados, metaNoFoc);
+        const cmeRows = espSel ? cme.rows.filter((r) => r.esp === espSel) : cme.rows;
+        mountTable(cliMetaEl, {
+          title: "Meta de clientes atendidos por especialista",
+          sub: `Alcance POI · cada cliente cuenta para quien lo atendió primero · meta repartida entre ${cme.Nesp} especialistas con metas (foc ${fmt1(cme.targetFoc)} · no foc ${fmt1(cme.targetNoFoc)} c/u)`,
+          searchPlaceholder: "Buscar especialista…", searchKeys: ["esp"], rows: cmeRows,
+          pageSize: 16, totalLabel: " especialistas",
+          columns: [
+            { label: "Especialista", cls: "name", render: (r) => esc(r.esp) + (r.tieneMeta ? "" : ` <span class="badge neutral"><i></i>sin meta</span>`) },
+            { label: "Focalizados (aten / meta)", render: (r) => metaCell(r.foc, r.metaFoc, r.tieneMeta) },
+            { label: "No focalizados (aten / meta)", render: (r) => metaCell(r.nofoc, r.metaNoFoc, r.tieneMeta) },
+            { label: "Total", cls: "num strong", render: (r) => fmt(r.total) },
+          ],
+        });
+      }
     }
 
-    const eje = espSel ? ejeG.filter((r) => r[CFG.X.ESPECIALISTA] === espSel) : ejeG;
-    const cl = MT.clientesResumen(eje, STORE.bd);
+    const cl = MT.clientesResumen(ejeG, STORE.bd);
     const rows = cl.tabla.slice().sort((a, b) => b.Servicios - a.Servicios);
     lastExport = {
       filename: `clientes_${espSel || "todos"}.csv`,
       columns: ["RUC", "Razón social", "Clasificación", "Focalizado", "Meses", "Servicios"],
-      rows: rows.map((r) => [r.RUC, r.Razon, r.Tipo, r.Focalizado ? "Sí" : "No", r.Meses, Math.round(r.Servicios)])
+      rows: rows.map((r) => [r.RUC, r.Razon, r.TipoContrib, r.Focalizado ? "Sí" : "No", r.Meses, Math.round(r.Servicios)])
     };
     const el = document.getElementById("tbl-esp");
     if (!el) return;
@@ -482,7 +495,7 @@
       columns: [
         { label: "RUC", key: "RUC", cls: "" },
         { label: "Razón social", cls: "name", render: (r) => esc(r.Razon) },
-        { label: "Clasificación", render: (r) => esc(r.Tipo) },
+        { label: "Clasificación", render: (r) => esc(r.TipoContrib) },
         { label: "Focalizado", cls: "ctr", render: (r) => r.Focalizado ? `<span class="badge green"><i></i>Sí</span>` : `<span class="badge neutral"><i></i>No</span>` },
         { label: "Meses", render: (r) => esc(r.Meses) },
         { label: "Servicios", cls: "num strong", render: (r) => fmt(r.Servicios) },
@@ -563,7 +576,7 @@
       filename: "padron_clientes.csv",
       columns: ["RUC", "Razón social", "Clasificación", "Focalizado", "Meses", "Servicios"],
       rows: cl.tabla.slice().sort((a, b) => b.Servicios - a.Servicios)
-        .map((r) => [r.RUC, r.Razon, r.Tipo, r.Focalizado ? "Sí" : "No", r.Meses, Math.round(r.Servicios)])
+        .map((r) => [r.RUC, r.Razon, r.TipoContrib, r.Focalizado ? "Sí" : "No", r.Meses, Math.round(r.Servicios)])
     };
 
     const kpis = [
@@ -598,6 +611,15 @@
       { label: "No focalizados", value: cl.no_focalizados, color: COL.soft },
     ];
 
+    // Clasificación de cliente: TIPO_CONTRIBUYENTE de ejecucion.xlsx, agregado
+    // por RUC (moda de sus filas) — se recalcula sobre `eje` ya filtrado por
+    // la barra de Filtros, así que responde a Programa/Mes/Especialista.
+    const contribCount = new Map();
+    cl.tabla.forEach((r) => contribCount.set(r.TipoContrib, (contribCount.get(r.TipoContrib) || 0) + 1));
+    const contribSegs = Array.from(contribCount.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([tipo, n], i) => ({ label: tipo, value: n, color: colorFor(i) }));
+
     // nuevos vs recurrentes por mes (apilado) + meta focalizados (línea)
     const stackRows = porMes.map((r) => ({ label: r.Mes, a: r.Nuevos, b: r.Recurrentes }));
 
@@ -609,9 +631,10 @@
       ${sectionHead("Indicadores de clientes", "Cartera atendida en 2026")}
       <section class="grid grid-kpi">${kpis}</section>
       <section class="grid g-2">
-        ${panel("Tipo de cliente", "Composición de la cartera", CH.donut(tipoSegs, fmt(cl.total), "clientes") + CH.legendList(tipoSegs))}
+        ${panel("Antigüedad de cliente", "Nuevos · reenganchados · recurrentes", CH.donut(tipoSegs, fmt(cl.total), "clientes") + CH.legendList(tipoSegs))}
         ${panel("Focalización", "Focalizados vs no focalizados", CH.donut(focSegs, fmt(cl.total), "clientes") + CH.legendList(focSegs))}
       </section>
+      ${panel("Clasificación de cliente", "Por tipo de contribuyente (ejecucion.xlsx) · según filtros actuales", CH.donut(contribSegs, fmt(cl.total), "clientes") + CH.legendList(contribSegs))}
       <section class="grid g-2">
         ${panel("Clientes atendidos por mes", "Nuevos vs recurrentes", CH.barsVertical(stackRows, { colA: COL.accent, colB: COL.soft, nameA: "Nuevos", nameB: "Recurrentes", capLimit: 12 }),
       `<div class="chart-legend"><span><i style="background:${COL.accent}"></i>Nuevos</span><span><i style="background:${COL.soft}"></i>Recurrentes</span></div>`)}
@@ -624,14 +647,14 @@
     if (!lastExport) return;
     const el = document.getElementById("tbl-cli");
     if (!el) return;
-    const rows = lastExport.rows.map((a) => ({ RUC: a[0], Razon: a[1], Tipo: a[2], Foc: a[3], Meses: a[4], Servicios: a[5] }));
+    const rows = lastExport.rows.map((a) => ({ RUC: a[0], Razon: a[1], TipoContrib: a[2], Foc: a[3], Meses: a[4], Servicios: a[5] }));
     mountTable(el, {
       title: "Padrón de clientes atendidos", sub: `${rows.length} empresas`, searchPlaceholder: "Buscar empresa / RUC…",
       searchKeys: ["RUC", "Razon"], rows, pageSize: 12, totalLabel: " empresas",
       columns: [
         { label: "RUC", key: "RUC" },
         { label: "Razón social", cls: "name", render: (r) => esc(r.Razon) },
-        { label: "Clasificación", render: (r) => esc(r.Tipo) },
+        { label: "Clasificación", render: (r) => esc(r.TipoContrib) },
         { label: "Focalizado", cls: "ctr", render: (r) => r.Foc === "Sí" ? `<span class="badge green"><i></i>Sí</span>` : `<span class="badge neutral"><i></i>No</span>` },
         { label: "Meses", render: (r) => esc(r.Meses) },
         { label: "Servicios", cls: "num strong", render: (r) => fmt(r.Servicios) },
@@ -1554,7 +1577,6 @@
     rail.querySelectorAll(".rail-btn").forEach((b) =>
       b.addEventListener("click", () => {
         VIEW = b.dataset.view;
-        if (VIEW !== "especialistas") espSel = null;
         if (VIEW !== "servicios") svcTareaFiltro = null;
         if (VIEW !== "cddfest") { cddSel = null; cddMode = "up"; cddDrillGrupo = null; cddDrillActividad = null; }
         location.hash = VIEW;
@@ -1598,7 +1620,6 @@
     const h = (location.hash || "").replace("#", "");
     if (NAV.some((n) => n.id === h) && h !== VIEW) {
       VIEW = h;
-      if (VIEW !== "especialistas") espSel = null;
       if (VIEW !== "servicios") svcTareaFiltro = null;
       if (VIEW !== "cddfest") { cddSel = null; cddMode = "up"; cddDrillGrupo = null; cddDrillActividad = null; }
       renderView();

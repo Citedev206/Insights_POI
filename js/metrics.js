@@ -176,7 +176,7 @@
       const ruc = r[X.RUC];
       if (!porRuc.has(ruc)) porRuc.set(ruc, {
         RUC: ruc, Razon: r[X.RAZON], mesesSet: new Set(), Servicios: 0,
-        Focalizado: false, temas: new Set(),
+        Focalizado: false, temas: new Set(), tipoContribCount: new Map(),
       });
       const o = porRuc.get(ruc);
       o.mesesSet.add(r[X.MES]);
@@ -184,6 +184,8 @@
       if (r.ES_FOCALIZADO) o.Focalizado = true;
       const tema = r[X.TEMA];
       if (tema != null && String(tema).trim()) o.temas.add(String(tema).trim());
+      const tc = r[X.TIPO_CONTRIB] || "Sin clasificar";
+      o.tipoContribCount.set(tc, (o.tipoContribCount.get(tc) || 0) + 1);
     }
 
     // RUCs con complejidad Media/Alta en 2026
@@ -210,6 +212,8 @@
       let tipo = "Recurrente";
       if (rucsNuevos.has(o.RUC)) tipo = "Nuevo";
       else if (rucsReeng.has(o.RUC)) tipo = "Reenganchado";
+      let tipoContrib = "Sin clasificar", tipoContribN = -1;
+      for (const [tc, n] of o.tipoContribCount) if (n > tipoContribN) { tipoContrib = tc; tipoContribN = n; }
       tabla.push({
         RUC: o.RUC, Razon: o.Razon,
         Meses: mesesArr.map((m) => CFG.MESES_NOMBRE[m] || m).join(", "),
@@ -218,6 +222,7 @@
         Focalizado: o.Focalizado,
         Tema: Array.from(o.temas).join("; "),
         Tipo: tipo,
+        TipoContrib: tipoContrib,
       });
     }
 
@@ -333,6 +338,70 @@
         FOCALIZADO: o.FOC, NO_FOCALIZADO: o.NOFOC, META_TOTAL: o.FOC + o.NOFOC
       };
     });
+  }
+
+  // Meta institucional por especialista en CdD-FEST: suma, para cada
+  // especialista, la meta de TODAS las actividades del catálogo
+  // (CFG.ACTIVIDADES) de las que es responsable — p. ej. Lita Castillo
+  // aparece en 1.1 (100), 3.5 (27) y 3.6 (27), así que su meta total es 154.
+  // Esta es la fuente autoritativa ("meta por componente/especialista"); NO
+  // se usa metas.xlsx aquí porque para CdD-FEST no trae esta meta individual
+  // de forma confiable.
+  function cddFestMetaPorEspecialista() {
+    const m = new Map();
+    Object.keys(CFG.ACTIVIDADES || {}).forEach((code) => {
+      const act = CFG.ACTIVIDADES[code];
+      if (!act || !act.especialista) return;
+      m.set(act.especialista, (m.get(act.especialista) || 0) + (Number(act.meta) || 0));
+    });
+    return m; // esp -> meta institucional total
+  }
+
+  // Clave de comparación para nombres de especialista: colapsa espacios,
+  // recorta y quita acentos/mayúsculas. Sin esto, una variación de captura
+  // entre ejecucion.xlsx y CFG.ACTIVIDADES (p. ej. "LITA CASTILLO " vs
+  // "Lita Castillo") crea DOS filas para la misma persona — una "sin meta"
+  // con lo ejecutado real y otra con la meta del catálogo pero 0 ejecutado.
+  const normEspKey = (s) => normTexto(normKey(s));
+
+  // Meta de UP atendidas por especialista, específica de CdD-FEST: a
+  // diferencia de POI (meta de clientes.xlsx repartida entre especialistas),
+  // en CdD-FEST cada especialista tiene su propia meta individual (catálogo
+  // de actividades) y todas las UP cuentan como "no focalizadas" (CdD-FEST
+  // no distingue focalización). Además, lo "atendido" se cuenta por UP (RUC)
+  // ÚNICA, no por servicio: si un especialista da 2 servicios a la misma UP,
+  // cuenta 1 hacia su meta (en POI sí cuenta cada servicio).
+  // `eje` debe venir ya acotado a PROGRAMA = "CdD-FEST".
+  function cddFestMetaEspecialistas(eje) {
+    const metaMap = cddFestMetaPorEspecialista();
+    // displayName / metaByKey / rucsPorEsp se indexan por normEspKey para no
+    // duplicar filas cuando el nombre en ejecucion.xlsx difiere en espacios,
+    // mayúsculas o acentos del nombre "oficial" del catálogo.
+    const displayName = new Map(), metaByKey = new Map();
+    for (const [esp, meta] of metaMap) {
+      const k = normEspKey(esp);
+      displayName.set(k, esp);
+      metaByKey.set(k, meta);
+    }
+    const rucsPorEsp = new Map(); // key normalizado -> Set(ruc)
+    for (const r of eje) {
+      const espRaw = r[X.ESPECIALISTA], ruc = r[X.RUC];
+      if (espRaw == null || espRaw === "" || ruc == null || ruc === "") continue;
+      const k = normEspKey(espRaw);
+      if (!displayName.has(k)) displayName.set(k, normKey(String(espRaw)));
+      if (!rucsPorEsp.has(k)) rucsPorEsp.set(k, new Set());
+      rucsPorEsp.get(k).add(ruc);
+    }
+    const allEsps = new Set([...metaByKey.keys(), ...rucsPorEsp.keys()]);
+    const rows = [];
+    for (const key of allEsps) {
+      const esp = displayName.get(key) || key;
+      const meta = metaByKey.get(key) || 0;
+      const atendido = rucsPorEsp.has(key) ? rucsPorEsp.get(key).size : 0;
+      rows.push({ esp, meta, atendido, tieneMeta: metaByKey.has(key), pct: pct(meta, atendido) });
+    }
+    rows.sort((a, b) => b.atendido - a.atendido || b.meta - a.meta);
+    return rows;
   }
 
   // ---------------------------------------------------------------------------
@@ -623,7 +692,7 @@
     pct, kpis, metaVsEjec, tendenciaMensual, rankingEspecialistas,
     complejidadResumen, heatmapCumplimiento, clientesResumen,
     clientesNuevosPorMes, kpisClientes, clientesMetaPorMes,
-    clientesMetaEspecialistas,
+    clientesMetaEspecialistas, cddFestMetaEspecialistas, cddFestMetaPorEspecialista,
     componenteGrupo, iceBrechas, ordenRecomendado, cddFestUnidades,
     cddFestResumenComponentes, cddFestDetalleComponente, reglaDuracion,
     metaMinimaComponente,
