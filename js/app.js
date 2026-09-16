@@ -68,8 +68,10 @@
   const COMPONENTE_COLORS = { 1: "#0B1B33", 2: COL.blue, 3: COL.purple, 4: "#E0A82E", 5: CH.SEM.verde };
 
   // ---- helpers de estado semáforo ------------------------------------------
-  const estadoTxt = { verde: "En meta", amarillo: "En proceso", rojo: "En riesgo" };
-  const estadoTone = { verde: "green", amarillo: "amber", rojo: "red" };
+  const estadoTxt = { verde: "En meta", amarillo: "En proceso", naranja: "En alerta", rojo: "En riesgo" };
+  const estadoTone = { verde: "green", amarillo: "amber", naranja: "orange", rojo: "red" };
+  const estadoTag = { verde: "up", amarillo: "warn", naranja: "mid", rojo: "down" };
+  const tagCls = (p) => estadoTag[global.POI.semaforo(p)];
 
   // =========================================================================
   //  COMPONENTES REUTILIZABLES
@@ -105,7 +107,8 @@
   const legendSemaforo = `<div class="legend-sem">
      <span><i style="background:${CH.SEM.verde}"></i>Cumplido ≥100%</span>
      <span><i style="background:${CH.SEM.amarillo}"></i>En proceso 80–99%</span>
-     <span><i style="background:${CH.SEM.rojo}"></i>En riesgo &lt;80%</span></div>`;
+     <span><i style="background:${CH.SEM.naranja}"></i>En alerta 50–79%</span>
+     <span><i style="background:${CH.SEM.rojo}"></i>En riesgo &lt;50%</span></div>`;
 
   // Tabla con búsqueda + paginación
   function mountTable(el, cfg) {
@@ -277,15 +280,16 @@
     porProg.sort((a, b) => b.Cumplimiento - a.Cumplimiento);
     const tm = MT.tendenciaMensual(eje, met);
 
-    // estado de cumplimiento por especialista (semáforo)
+    // estado de cumplimiento por especialista (semáforo de 4 niveles)
     const conMeta = rk.filter((r) => r.Meta > 0);
-    const enMeta = conMeta.filter((r) => r.Cumplimiento >= 100).length;
-    const proceso = conMeta.filter((r) => r.Cumplimiento >= 80 && r.Cumplimiento < 100).length;
-    const riesgo = conMeta.filter((r) => r.Cumplimiento < 80).length;
+    const semCounts = { verde: 0, amarillo: 0, naranja: 0, rojo: 0 };
+    conMeta.forEach((r) => { semCounts[global.POI.semaforo(r.Cumplimiento)]++; });
+    const enMeta = semCounts.verde;
     const estadoSegs = [
-      { label: "En meta", value: enMeta, color: CH.SEM.verde },
-      { label: "En proceso", value: proceso, color: CH.SEM.amarillo },
-      { label: "En riesgo", value: riesgo, color: CH.SEM.rojo },
+      { label: "En meta", value: semCounts.verde, color: CH.SEM.verde },
+      { label: "En proceso", value: semCounts.amarillo, color: CH.SEM.amarillo },
+      { label: "En alerta", value: semCounts.naranja, color: CH.SEM.naranja },
+      { label: "En riesgo", value: semCounts.rojo, color: CH.SEM.rojo },
     ];
 
     // export
@@ -296,7 +300,6 @@
     };
 
     const metaNoFoc = Math.max(kc.meta_clientes - kc.meta_focalizados, 0);
-    const tagCls = (p) => (p >= 100 ? "up" : p >= 80 ? "warn" : "down");
     const kpis = [
       kpiCard({
         name: "Avance global POI", icon: I.target, tone: "purple",
@@ -400,7 +403,7 @@
       kpiCard({
         name: "Cumplimiento", icon: I.spark, tone: estadoTone[global.POI.semaforo(k.cumplimiento)],
         value: fmt1(k.cumplimiento), unit: "%", bar: k.cumplimiento, barColor: CH.semColor(k.cumplimiento),
-        foot: `<span class="tag ${k.cumplimiento >= 100 ? "up" : k.cumplimiento >= 80 ? "warn" : "down"}">${estadoTxt[global.POI.semaforo(k.cumplimiento)]}</span>`
+        foot: `<span class="tag ${tagCls(k.cumplimiento)}">${estadoTxt[global.POI.semaforo(k.cumplimiento)]}</span>`
       }),
       kpiCard({
         name: "Clientes atendidos", icon: I.building, tone: "blue", value: fmt(k.clientes),
@@ -519,7 +522,7 @@
     const kpiCols = porProg.map((r, i) => kpiCard({
       name: truncate(r.Dim, 22), icon: I.folder, tone: estadoTone[r.Semaforo],
       value: fmt(r.Ejecutado), unit: ` / ${fmt(r.Meta)}`, bar: r.Cumplimiento, barColor: CH.semColor(r.Cumplimiento),
-      foot: `<span class="tag ${r.Cumplimiento >= 100 ? "up" : r.Cumplimiento >= 80 ? "warn" : "down"}">${Math.round(r.Cumplimiento)}%</span><span class="muted">cumplimiento</span>`,
+      foot: `<span class="tag ${tagCls(r.Cumplimiento)}">${Math.round(r.Cumplimiento)}%</span><span class="muted">cumplimiento</span>`,
     })).join("");
 
     // evolución mensual por programa (multilínea)
@@ -730,12 +733,12 @@
       ${sectionHead("Estructura de la ejecución", "Meta vs ejecución por complejidad y por tarea para la toma de decisiones")}
       <section class="grid g-2">
         ${panel("Meta vs Ejecutado por complejidad", "Cantidad programada vs ejecutada · Alta · Media · Baja", CH.barsMetaEjec(porComp, { gutter: 90 }), legendMetaEjec)}
-        ${panel("Meta vs Ejecutado por tarea", "Cantidades programadas vs ejecutadas · ordenado por meta", porTareaF.length ? CH.barsMetaEjec(porTareaF, { gutter: 170 }) : CH.empty("Sin tareas para este servicio"), svcSelector)}
+        ${panel("Meta vs Ejecutado por tarea", "Cantidades programadas vs ejecutadas · ordenado por meta", porTareaF.length ? CH.barsMetaEjec(porTareaF, { gutter: 230, wrapLabels: true }) : CH.empty("Sin tareas para este servicio"), svcSelector)}
       </section>
       ${sectionHead("Cumplimiento por servicio y por tarea")}
       <section class="grid g-2">
         ${panel("% por tipo de servicio", "", CH.barsSemaforo(porServ, { gutter: 170 }), legendSemaforo)}
-        ${panel("% por tipo de tarea", "", CH.barsSemaforo(porTarea, { gutter: 170 }), legendSemaforo)}
+        ${panel("% por tipo de tarea", "", CH.barsSemaforo(porTarea, { gutter: 230, wrapLabels: true }), legendSemaforo)}
       </section>
       ${panel("Meta vs Ejecutado por servicio", "", CH.barsMetaEjec(porServ.slice().sort((a, b) => b.Ejecutado - a.Ejecutado), { gutter: 170 }), legendMetaEjec)}`;
   }

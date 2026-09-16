@@ -12,7 +12,7 @@
     ink: "#28232E", text: "#3D3645", muted: "#867E90", muted2: "#A39CAB",
     blue: "#2E5FD4",
   };
-  const SEM = { verde: "#1F9D6B", amarillo: "#E0A82E", rojo: "#C0392B" };
+  const SEM = { verde: "#1F9D6B", amarillo: "#E0A82E", naranja: "#D9731E", rojo: "#C0392B" };
   const semColor = (s) => SEM[global.POI.semaforo(s)];
 
   const nf = new Intl.NumberFormat("es-PE");
@@ -85,10 +85,15 @@
     if (!rows || !rows.length) return empty();
     const maxV = Math.max(1, ...rows.map((r) => Math.max(r.Meta, r.Ejecutado)));
     const g = opts.gutter || 150;
+    // opts.wrapLabels: el título completo se ve siempre (en varias líneas si
+    // hace falta) en vez de recortarse con "…" — útil para nombres largos
+    // como los de TIPO_TAREA, donde el texto completo importa más que la
+    // alineación en una sola línea.
+    const labCls = opts.wrapLabels ? "hbar-lab wrap" : "hbar-lab";
     const body = rows.map((r) => {
       const wM = (r.Meta / maxV) * 100, wE = (r.Ejecutado / maxV) * 100;
       return `<div class="hbar-row">
-        <div class="hbar-lab" title="${esc(r.Dim)}">${esc(r.Dim)}</div>
+        <div class="${labCls}" title="${esc(r.Dim)}">${esc(r.Dim)}</div>
         <div class="hbar-cluster">
           <div class="hbar-line"><div class="hbar-track"><span class="hbar-fill" style="width:${wM.toFixed(1)}%;background:${COL.soft}"></span></div><span class="hbar-num muted">${fmt(r.Meta)}</span></div>
           <div class="hbar-line"><div class="hbar-track"><span class="hbar-fill" style="width:${wE.toFixed(1)}%;background:${COL.accent}"></span></div><span class="hbar-num">${fmt(r.Ejecutado)}</span></div>
@@ -109,10 +114,11 @@
     const maxV = Math.max(100, ...sorted.map((r) => r[valKey]));
     const g = opts.gutter || 160;
     const guideLeft = (100 / maxV) * 100;
+    const labCls = opts.wrapLabels ? "hbar-lab wrap" : "hbar-lab";
     const body = sorted.map((r) => {
       const v = r[valKey], w = (v / maxV) * 100, c = semColor(v);
       return `<div class="hbar-row">
-        <div class="hbar-lab" title="${esc(r.Dim)}">${esc(r.Dim)}</div>
+        <div class="${labCls}" title="${esc(r.Dim)}">${esc(r.Dim)}</div>
         <div class="hbar-line">
           <div class="hbar-track"><span class="hbar-fill" style="width:${Math.max(w, 0.5).toFixed(1)}%;background:${c}"></span><span class="hbar-guide" style="left:${guideLeft.toFixed(1)}%"></span></div>
           <span class="hbar-num">${Math.round(v)}%</span>
@@ -270,7 +276,7 @@
       const fullTitle = `${r.label} | ${r.metaTotal > 0 ? 'Prog: ' + fmt(r.metaTotal) + ' Ejec: ' + fmt(r.ejecTotal) : 'Sin meta'}`;
       return `
       <div class="hm-row">
-        <div class="hm-lab" title="${esc(fullTitle)}">
+        <div class="hm-lab wrap" title="${esc(fullTitle)}">
           <span class="hm-lab-t">${esc(r.label)}</span>
           <span class="hm-lab-n">${numTxt}</span>
         </div>
@@ -284,7 +290,7 @@
           <span class="hm-pct">—</span><span class="hm-detail">${fmt(cell.ejec)} s/meta</span></div>`;
       }
       const tone = global.POI.semaforo(cell.pct);
-      const cssTone = tone === "verde" ? "green" : tone === "amarillo" ? "amber" : "red";
+      const cssTone = tone === "verde" ? "green" : tone === "amarillo" ? "amber" : tone === "naranja" ? "orange" : "red";
       const pctTxt = Math.round(cell.pct) + "%";
       const detail = cell.meta != null ? `<span class="hm-detail">${fmt(cell.ejec)}/${fmt(cell.meta)}</span>` : "";
       return `<div class="hm-cell hm-${cssTone}" title="${pctTxt}${cell.meta != null ? ` · Ejec ${fmt(cell.ejec)} / Prog ${fmt(cell.meta)}` : ""}"><span class="hm-pct">${pctTxt}</span>${detail}</div>`;

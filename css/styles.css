@@ -32,6 +32,7 @@
   /* Semáforo de cumplimiento */
   --green:#1F9D6B;   --green-soft:#E4F4EC;  --green-ink:#177C54;
   --amber:#E0A82E;   --amber-soft:#FCF3DB;  --amber-ink:#B07D14;
+  --orange:#D9731E;  --orange-soft:#FCEEDD; --orange-ink:#A85815;
   --red:#C0392B;     --red-soft:#FBE9EA;    --red-ink:#A32A1E;
 
   --radius:16px;  --radius-sm:11px;  --radius-xs:8px;
@@ -224,6 +225,7 @@ body{
 .kpi-ico.blue{ background:var(--blue-tint); color:var(--blue); }
 .kpi-ico.green{ background:var(--green-soft); color:var(--green); }
 .kpi-ico.amber{ background:var(--amber-soft); color:var(--amber-ink); }
+.kpi-ico.orange{ background:var(--orange-soft); color:var(--orange-ink); }
 .kpi-ico.red{ background:var(--red-soft); color:var(--red); }
 .kpi-val{ font-size:1.9rem; font-weight:700; color:var(--ink); letter-spacing:-1px;
   font-variant-numeric:tabular-nums; line-height:1; }
@@ -239,6 +241,7 @@ body{
 .tag.up{ color:var(--green); background:var(--green-soft); }
 .tag.down{ color:var(--red); background:var(--red-soft); }
 .tag.warn{ color:var(--amber-ink); background:var(--amber-soft); }
+.tag.mid{ color:var(--orange-ink); background:var(--orange-soft); }
 
 /* ============================================================
    BARRAS DE PROGRESO (líneas / listas)
@@ -300,6 +303,8 @@ table.dt td.strong{ color:var(--ink); font-weight:600; }
 .badge.green i{ background:var(--green); }
 .badge.amber{ color:var(--amber-ink); background:var(--amber-soft); }
 .badge.amber i{ background:var(--amber); }
+.badge.orange{ color:var(--orange-ink); background:var(--orange-soft); }
+.badge.orange i{ background:var(--orange); }
 .badge.red{ color:var(--red-ink); background:var(--red-soft); }
 .badge.red i{ background:var(--red); }
 .badge.neutral{ color:var(--text2); background:var(--track); }
@@ -384,6 +389,9 @@ select.pick:focus{ outline:none; border-color:var(--purple); }
   gap:12px; align-items:center; }
 .hbar-lab{ font-size:.78rem; color:var(--text); font-weight:500; text-align:right;
   overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* .wrap: el título se ve completo (varias líneas) en vez de recortarse con
+   "…" — usado para etiquetas largas como TIPO_TAREA. */
+.hbar-lab.wrap{ overflow:visible; text-overflow:clip; white-space:normal; line-height:1.22; }
 .hbar-cluster{ display:flex; flex-direction:column; gap:4px; min-width:0; }
 .hbar-line{ display:flex; align-items:center; gap:9px; min-width:0; }
 .hbar-track{ position:relative; flex:1; height:13px; background:var(--track);
@@ -538,9 +546,13 @@ tr.row-expand td{ background:#FBFAFC; padding:14px 16px; border-bottom:1px solid
    HEATMAP (tarea × mes)
    ============================================================ */
 .heatmap{ display:flex; flex-direction:column; gap:4px; min-width:520px; }
-.hm-row{ display:grid; grid-template-columns:220px repeat(var(--hm-cols,12), 1fr); gap:4px; align-items:center; }
+.hm-row{ display:grid; grid-template-columns:260px repeat(var(--hm-cols,12), 1fr); gap:4px; align-items:center; }
 .hm-lab{ font-size:.76rem; color:var(--text); font-weight:500; display:flex; justify-content:space-between; align-items:center; padding-right:6px; gap:6px; }
 .hm-lab-t { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* .wrap: el título completo de la tarea se ve siempre, en varias líneas si
+   hace falta, en vez de recortarse con "…". */
+.hm-lab.wrap{ align-items:flex-start; padding-top:5px; padding-bottom:5px; }
+.hm-lab.wrap .hm-lab-t{ white-space:normal; overflow:visible; text-overflow:clip; line-height:1.2; flex:1 1 auto; min-width:0; }
 .hm-lab-n { flex-shrink:0; font-size:.7rem; font-weight:700; color:var(--purple); }
 .hm-cell{ height:42px; border-radius:5px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:var(--surface);
   font-size:.72rem; font-weight:600; font-variant-numeric:tabular-nums; gap:1px; }
@@ -555,6 +567,7 @@ tr.row-expand td{ background:#FBFAFC; padding:14px 16px; border-bottom:1px solid
 .hm-cell.hm-nometa{ background:var(--blue-tint); color:var(--blue); }
 .hm-cell.hm-green{ background:var(--green-soft); color:var(--green-ink); }
 .hm-cell.hm-amber{ background:var(--amber-soft); color:var(--amber-ink); }
+.hm-cell.hm-orange{ background:var(--orange-soft); color:var(--orange-ink); }
 .hm-cell.hm-red{ background:var(--red-soft); color:var(--red-ink); }
 
 /* ============================================================

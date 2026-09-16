@@ -45,6 +45,7 @@
     COMPLEJIDADES: ["Alta", "Media", "Baja"],
     SEMAFORO_VERDE: 100,
     SEMAFORO_AMARILLO: 80,
+    SEMAFORO_NARANJA: 50,
     MESES_ES: { 1: "Ene", 2: "Feb", 3: "Mar", 4: "Abr", 5: "May", 6: "Jun",
                 7: "Jul", 8: "Ago", 9: "Set", 10: "Oct", 11: "Nov", 12: "Dic" },
     MESES_NOMBRE: { 1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril", 5: "Mayo",
@@ -136,6 +137,7 @@
   function semaforo(pct) {
     if (pct >= CFG.SEMAFORO_VERDE) return "verde";
     if (pct >= CFG.SEMAFORO_AMARILLO) return "amarillo";
+    if (pct >= CFG.SEMAFORO_NARANJA) return "naranja";
     return "rojo";
   }
 
