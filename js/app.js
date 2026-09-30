@@ -749,6 +749,13 @@
     if (pick) pick.addEventListener("change", (e) => { svcTareaFiltro = e.target.value || null; renderView(); });
   }
 
+  // Fecha local YYYY-MM-DD compartida por CdD-FEST y calendarios.
+  // Evita desplazamientos de día causados por convertir a UTC.
+  function isoLocal(date) {
+    if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+  }
+
   // ---- WORLD VISION: intervenciones POI financiadas ------------------------
   // FINANCIADO identifica al financiador, no sustituye PROGRAMA.
   const wvText = (v) => String(v == null ? "" : v).trim();
