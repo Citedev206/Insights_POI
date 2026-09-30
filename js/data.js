@@ -30,7 +30,7 @@
       RAZON: "RAZON_SOCIAL", SERVICIO: "TIPO_SERVICIO", TAREA: "TIPO_TAREA",
       COMPLEJIDAD: "COMPLEJIDAD", CANTIDAD: "CANTIDAD", FUENTE: "FUENTE",
       TEMA: "TEMA_ABORDADO", COMPONENTE: "COMPONENTE",
-      TIPO_CONTRIB: "TIPO_CONTRIBUYENTE",
+      TIPO_CONTRIB: "TIPO_CONTRIBUYENTE", FINANCIADO: "FINANCIADO", FECHA_I: "FECHA_I",
     },
     // Metas
     M: {
@@ -258,6 +258,8 @@
       o[X.COMPLEJIDAD] = normComplejidad(o[X.COMPLEJIDAD]);
       o[X.TIPO_CONTRIB] = o[X.TIPO_CONTRIB] != null && String(o[X.TIPO_CONTRIB]).trim() !== ""
         ? String(o[X.TIPO_CONTRIB]).trim() : null;
+      // FECHA_I es opcional y solo se usa en los calendarios World Vision.
+      o[X.FECHA_I] = parseFecha(o[X.FECHA_I]);
       const f = parseFecha(o[X.FECHA]);
       if (f) { o[X.ANIO] = f.getFullYear(); o[X.MES] = f.getMonth() + 1; o[X.FECHA] = f; }
       o[X.MES] = toInt(o[X.MES]);

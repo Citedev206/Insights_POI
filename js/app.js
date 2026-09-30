@@ -17,7 +17,8 @@
   const FILTER = { programas: [], meses: [], especialistas: [] };
   let VIEW = "ejecutivo";
   let cliSel = null;               // empresa seleccionada en el Calendario
-  let calMode = "empresa";         // modo del calendario: "empresa" | "intervencion"
+  let wvEspSel = null;             // especialista seleccionado en World Vision
+  let calMode = "resumen";         // modo del calendario: "empresa" | "intervencion"
   let cddSel = null;               // Unidad Productiva seleccionada en CdD-FEST
   let cddMode = "up";              // modo CdD-FEST: "up" (por unidad) | "general" (todas)
   let cddDrillGrupo = null;        // componente (1-5) elegido en la Vista general para ver su detalle
@@ -53,7 +54,7 @@
     { id: "especialistas", ico: I.user, navLabel: "Especialistas", label: "Especialistas", sub: "Cumplimiento individual · tareas por mes" },
     { id: "clientes", ico: I.building, navLabel: "Clientes", label: "Clientes", sub: "Nuevos · reenganchados · focalizados" },
     { id: "servicios", ico: I.puzzle, navLabel: "Servicios", label: "Servicios", sub: "Estructura y cumplimiento de servicios" },
-    { id: "calendario", ico: I.calendar, navLabel: "Calendario", label: "Calendario de atención", sub: "Días de atención por empresa · calendario mensual" },
+    { id: "calendario", ico: I.calendar, navLabel: "World Vision", label: "Intervenciones World Vision", sub: "Servicios POI financiados · resumen, RUC y especialistas" },
     { id: "cddfest", ico: I.compass, navLabel: "CdD-FEST", label: "CdD-FEST", sub: "Radar ICE · orden recomendado · línea de tiempo por componente" },
     { id: "programas", ico: I.folder, navLabel: "Programas", label: "Programas", sub: "Ejecución por programa presupuestal" },
   ];
@@ -748,264 +749,190 @@
     if (pick) pick.addEventListener("change", (e) => { svcTareaFiltro = e.target.value || null; renderView(); });
   }
 
-  // ---- CALENDARIO: dos modos (empresa atendida / puntos de intervención) ---
+  // ---- WORLD VISION: intervenciones POI financiadas ------------------------
+  // FINANCIADO identifica al financiador, no sustituye PROGRAMA.
+  const wvText = (v) => String(v == null ? "" : v).trim();
+  const wvRows = () => STORE.ejecucion.filter((r) =>
+    wvText(r[CFG.X.PROGRAMA]).toUpperCase() === "POI" &&
+    /WORLD\s*[- ]?\s*VISION/i.test(wvText(r[CFG.X.FINANCIADO])) &&
+    (!FILTER.meses.length || FILTER.meses.includes(r[CFG.X.MES])) &&
+    (!FILTER.especialistas.length || FILTER.especialistas.includes(r[CFG.X.ESPECIALISTA])));
+  const wvDate = (d) => d instanceof Date && !isNaN(d) ?
+    `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}` : "";
+  // Días calendario inclusivos. FECHA sigue siendo la fecha de cierre y define MES/AÑO.
+  // Para fechas iniciales vacías o inválidas, se muestra únicamente FECHA.
+  function wvDays(r) {
+    const end=r[CFG.X.FECHA]; if(!(end instanceof Date)||isNaN(end))return [];
+    const start=r[CFG.X.FECHA_I] instanceof Date&&!isNaN(r[CFG.X.FECHA_I]) ? r[CFG.X.FECHA_I] : end;
+    const first=new Date(start.getFullYear(),start.getMonth(),start.getDate());
+    const last=new Date(end.getFullYear(),end.getMonth(),end.getDate());
+    if(first>last)return [wvDate(last)];
+    const result=[];
+    for(let t=first.getTime();t<=last.getTime()&&result.length<366;t+=86400000) {
+      const date=new Date(t); result.push(wvDate(new Date(date.getUTCFullYear(),date.getUTCMonth(),date.getUTCDate())));
+    }
+    return result;
+  }
+  function wvCalendarData(rows) {
+    const byDate=new Map(),monthMap=new Map();
+    for(const r of rows)for(const iso of wvDays(r)) {
+      if(!byDate.has(iso))byDate.set(iso,[]);byDate.get(iso).push(r);
+      const [year,month,day]=iso.split("-").map(Number),key=`${year}-${month}`;
+      if(!monthMap.has(key))monthMap.set(key,{year,month,days:new Map()});
+      const days=monthMap.get(key).days;days.set(day,(days.get(day)||0)+1);
+    }
+    return {byDate,months:[...monthMap.values()].sort((a,b)=>a.year-b.year||a.month-b.month)};
+  }
+  const wvSum = (rows) => rows.reduce((n,r) => n + (Number(r[CFG.X.CANTIDAD]) || 0), 0);
+  const wvUniq = (rows, key) => new Set(rows.map(key).filter(Boolean)).size;
+  function wvTable(rows, id, title) {
+    return `<div class="card"><div class="card-head"><div><h3>${esc(title)}</h3><div class="sub">Busca por RUC, empresa, especialista o temática · ${fmt(rows.length)} registros</div></div></div>
+      <div id="${id}"></div></div>`;
+  }
+  function wvMountTable(id, rows) {
+    const el = document.getElementById(id); if (!el) return;
+    mountTable(el, { title:"Detalle de servicios ejecutados", pageSize:12,
+      rows: rows.map((r,i) => ({
+        Clave:i+1, Inicio:wvDate(r[CFG.X.FECHA_I]) || wvDate(r[CFG.X.FECHA]) || "Sin fecha", Fecha:wvDate(r[CFG.X.FECHA]) || "Sin fecha", RUC:wvText(r[CFG.X.RUC]),
+        Empresa:wvText(r[CFG.X.RAZON]), Especialista:wvText(r[CFG.X.ESPECIALISTA]),
+        Servicio:wvText(r[CFG.X.SERVICIO]), Tarea:wvText(r[CFG.X.TAREA]),
+        Tema:wvText(r[CFG.X.TEMA]), Cantidad:Number(r[CFG.X.CANTIDAD])||0
+      })),
+      searchKeys:["Inicio","Fecha","RUC","Empresa","Especialista","Servicio","Tarea","Tema"],
+      columns:[
+        {label:"Inicio",key:"Inicio"},{label:"Fin",key:"Fecha"},{label:"RUC",key:"RUC"},
+        {label:"Razón social",key:"Empresa"},{label:"Atendió",key:"Especialista"},
+        {label:"Servicio",key:"Servicio"},{label:"Temática",key:"Tema"},
+        {label:"Cantidad",key:"Cantidad",cls:"num"}
+      ]
+    });
+  }
   function viewCalendario() {
+    const rows = wvRows();
     const tabs = `<div class="segmented" id="cal-tabs">
-      <button class="seg ${calMode === "empresa" ? "active" : ""}" data-mode="empresa">Por empresa</button>
-      <button class="seg ${calMode === "intervencion" ? "active" : ""}" data-mode="intervencion">Puntos de intervención</button>
+      <button class="seg ${calMode === "resumen" ? "active" : ""}" data-mode="resumen">Resumen de intervenciones</button>
+      <button class="seg ${calMode === "ruc" ? "active" : ""}" data-mode="ruc">Intervenciones por RUC</button>
+      <button class="seg ${calMode === "especialista" ? "active" : ""}" data-mode="especialista">Por especialista</button>
     </div>`;
-    const body = calMode === "intervencion" ? viewCalIntervencion() : viewCalEmpresa();
-    return `${tabs}${body}`;
-  }
-
-  function viewCalEmpresa() {
-    const { eje } = currentData();
-    if (!eje.length) return noData();
-    const byRuc = new Map();
-    eje.forEach((r) => {
-      const ruc = r[CFG.X.RUC];
-      if (!byRuc.has(ruc)) byRuc.set(ruc, { ruc, razon: r[CFG.X.RAZON], servicios: 0, foc: false, dates: [] });
-      const o = byRuc.get(ruc);
-      o.servicios += Number(r[CFG.X.CANTIDAD]) || 0;
-      if (r.ES_FOCALIZADO) o.foc = true;
-      const f = r[CFG.X.FECHA];
-      if (f instanceof Date && !isNaN(f)) o.dates.push(f);
-    });
-    const empresas = Array.from(byRuc.values()).sort((a, b) => b.servicios - a.servicios);
-    if (!empresas.length) return noData("No hay empresas con los filtros actuales.");
-    if (!cliSel || !byRuc.has(cliSel)) cliSel = empresas[0].ruc;
-    const emp = byRuc.get(cliSel);
-
-    const selector = `<div class="selectrow"><label>Ver empresa</label>
-      ${searchSelectHtml("cli-pick", empresas.map((e) => ({ value: e.ruc, label: e.razon || e.ruc, sub: e.ruc })),
-      cliSel, "Buscar por RUC o razón social…")}</div>`;
-
-    if (!emp.dates.length) {
-      return `${sectionHead("Calendario de atención", emp.razon || emp.ruc)}${selector}
-        <div class="empty" style="min-height:200px">Esta empresa no tiene fechas de atención registradas (columna FECHA vacía) para los filtros actuales.</div>`;
+    if (!rows.length) return `${sectionHead("Intervenciones World Vision", "Servicios del POI financiados por World Vision")}${tabs}
+      ${noData("No se encontraron registros POI con FINANCIADO = World Vision. Comprueba los valores de esa columna en data/ejecucion.xlsx.")}`;
+    if (calMode === "ruc") return `${sectionHead("Intervenciones por RUC", "Fechas y detalle de atención por persona o empresa")}${tabs}${viewWvRuc(rows)}`;
+    if (calMode === "especialista") return `${sectionHead("Salidas por especialista", "Días de intervención, empresas atendidas y temáticas realizadas")}${tabs}${viewWvEspecialista(rows)}`;
+    const byMonth = new Map(), byEsp = new Map(), byTema = new Map();
+    for (const r of rows) {
+      const mes = `${r[CFG.X.ANIO]}-${String(r[CFG.X.MES]).padStart(2,"0")}`;
+      byMonth.set(mes,(byMonth.get(mes)||0)+(Number(r[CFG.X.CANTIDAD])||0));
+      const esp=wvText(r[CFG.X.ESPECIALISTA])||"Sin especialista", tema=wvText(r[CFG.X.TEMA])||"Sin temática";
+      byEsp.set(esp,(byEsp.get(esp)||0)+(Number(r[CFG.X.CANTIDAD])||0));
+      byTema.set(tema,(byTema.get(tema)||0)+(Number(r[CFG.X.CANTIDAD])||0));
     }
-
-    const monthMap = new Map(); // "Y-M" -> {year, month, days:Map(day->count)}
-    const dayset = new Set();
-    emp.dates.forEach((d) => {
-      const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
-      const key = y + "-" + m;
-      if (!monthMap.has(key)) monthMap.set(key, { year: y, month: m, days: new Map() });
-      const mm = monthMap.get(key);
-      mm.days.set(day, (mm.days.get(day) || 0) + 1);
-      dayset.add(key + "-" + day);
-    });
-    const months = Array.from(monthMap.values()).sort((a, b) => a.year - b.year || a.month - b.month);
-    const fechasOrden = emp.dates.slice().sort((a, b) => a - b);
-    const primero = fechasOrden[0], ultimo = fechasOrden[fechasOrden.length - 1];
-    const fmtFecha = (d) => d.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric" });
-
-    lastExport = {
-      filename: `calendario_${emp.ruc}.csv`, columns: ["Fecha", "Servicios ese dia"],
-      rows: months.flatMap((mm) => Array.from(mm.days.entries()).sort((a, b) => a[0] - b[0])
-        .map(([day, c]) => [`${mm.year}-${String(mm.month).padStart(2, "0")}-${String(day).padStart(2, "0")}`, c]))
-    };
-
-    const kpis = [
-      kpiCard({
-        name: "Días de atención", icon: I.calendar, tone: "purple", value: fmt(dayset.size),
-        foot: `<span class="muted">jornadas con al menos un servicio</span>`
-      }),
-      kpiCard({
-        name: "Servicios recibidos", icon: I.layers, tone: "blue", value: fmt(emp.servicios),
-        foot: `<span class="muted">en ${fmt(months.length)} mes(es)</span>`
-      }),
-      kpiCard({
-        name: "Primer contacto", icon: I.spark, tone: "purple", value: fmtFecha(primero),
-        foot: `<span class="muted">inicio de atención</span>`
-      }),
-      kpiCard({
-        name: "Último contacto", icon: I.clock, tone: "blue", value: fmtFecha(ultimo),
-        foot: `<span class="muted">atención más reciente</span>`
-      }),
-    ].join("");
-
-    const legend = `<div class="cal-legend"><span>Menos</span>
-      <i style="background:var(--track)"></i><i class="lv1"></i><i class="lv2"></i><i class="lv3"></i><i class="lv4"></i>
-      <span>más servicios/día</span></div>`;
-
-    return `${sectionHead("Calendario de atención", emp.razon || emp.ruc)}
-      ${selector}
-      <section class="grid grid-kpi">${kpis}</section>
-      ${panel("Días atendidos por mes", (emp.foc ? "Empresa focalizada · " : "") + "cada celda es un día; el color indica cuántos servicios se brindaron",
-      `<div class="cal-grid">${months.map(renderMonth).join("")}</div>${legend}`)}`;
+    lastExport={filename:"worldvision_servicios.csv",columns:["Fecha","RUC","Razón social","Especialista","Servicio","Tarea","Temática","Cantidad","Financiado"],
+      rows:rows.map(r=>[wvDate(r[CFG.X.FECHA]),r[CFG.X.RUC],r[CFG.X.RAZON],r[CFG.X.ESPECIALISTA],r[CFG.X.SERVICIO],r[CFG.X.TAREA],r[CFG.X.TEMA],r[CFG.X.CANTIDAD],r[CFG.X.FINANCIADO]])};
+    return `${sectionHead("Intervenciones World Vision", "Servicios ejecutados del POI financiados por World Vision")}${tabs}
+      <section class="grid grid-kpi">
+      ${kpiCard({name:"Servicios ejecutados",icon:I.layers,tone:"purple",value:fmt(wvSum(rows)),foot:"Suma de CANTIDAD"})}
+      ${kpiCard({name:"Personas / empresas",icon:I.building,tone:"blue",value:fmt(wvUniq(rows,r=>r[CFG.X.RUC])),foot:"RUC distintos"})}
+      ${kpiCard({name:"Especialistas",icon:I.user,tone:"purple",value:fmt(wvUniq(rows,r=>r[CFG.X.ESPECIALISTA])),foot:"Responsables de atención"})}
+      ${kpiCard({name:"Días de intervención",icon:I.calendar,tone:"blue",value:fmt(wvUniq(rows,r=>wvDate(r[CFG.X.FECHA]))),foot:"Fechas distintas"})}
+      </section>
+      <section class="grid grid-2">
+        ${panel("Servicios ejecutados por mes","Según fecha de ejecución",CH.barsVertical([...byMonth].sort().map(([label,a])=>({label,a,b:0})),{nameA:"Servicios",nameB:"",colA:COL.accent}))}
+        ${panel("Servicios por especialista","Cantidad ejecutada",CH.barsSimple([...byEsp].sort((a,b)=>b[1]-a[1]).map(([label,value])=>({label,value}))))}
+      </section>
+      ${panel("Temáticas abordadas","Servicios ejecutados por temática",CH.barsSimple([...byTema].sort((a,b)=>b[1]-a[1]).slice(0,20).map(([label,value])=>({label,value})),{gutter:220}))}
+      ${wvTable(rows,"wv-general-table","Desagregado de servicios y responsables")}`;
   }
-
-  function renderMonth(mm) {
-    const dows = ["L", "M", "M", "J", "V", "S", "D"];
-    const daysInMonth = new Date(mm.year, mm.month, 0).getDate();
-    const offset = (new Date(mm.year, mm.month - 1, 1).getDay() + 6) % 7; // lunes primero
-    const cells = [];
-    for (let i = 0; i < offset; i++) cells.push(`<div class="cal-day empty"></div>`);
-    for (let d = 1; d <= daysInMonth; d++) {
-      const c = mm.days.get(d) || 0;
-      if (!c) { cells.push(`<div class="cal-day">${d}</div>`); continue; }
-      const lv = c >= 4 ? 4 : c;
-      cells.push(`<div class="cal-day on lv${lv}" title="${d}/${mm.month}/${mm.year}: ${c} servicio${c === 1 ? "" : "s"}">${d}</div>`);
+  function viewWvRuc(rows) {
+    const byRuc=new Map();
+    for(const r of rows){const ruc=wvText(r[CFG.X.RUC]);if(!ruc)continue;
+      if(!byRuc.has(ruc))byRuc.set(ruc,{ruc,razon:wvText(r[CFG.X.RAZON]),rows:[]});
+      byRuc.get(ruc).rows.push(r);
     }
-    return `<div class="cal-month">
-      <h4>${esc(CFG.MESES_NOMBRE[mm.month] || mm.month)} ${mm.year}</h4>
-      <div class="cal-week dow">${dows.map((x) => `<div class="cal-dow">${x}</div>`).join("")}</div>
-      <div class="cal-week">${cells.join("")}</div>
-    </div>`;
+    const empresas=[...byRuc.values()].sort((a,b)=>wvSum(b.rows)-wvSum(a.rows));
+    if(!empresas.length)return noData("No hay registros con RUC.");
+    if(!cliSel||!byRuc.has(cliSel))cliSel=empresas[0].ruc;
+    const emp=byRuc.get(cliSel), {byDate,months}=wvCalendarData(emp.rows);
+    lastExport={filename:`worldvision_${emp.ruc}.csv`,columns:["Fecha","RUC","Razón social","Especialista","Servicio","Tarea","Temática","Cantidad"],
+      rows:emp.rows.map(r=>[wvDate(r[CFG.X.FECHA]),emp.ruc,emp.razon,r[CFG.X.ESPECIALISTA],r[CFG.X.SERVICIO],r[CFG.X.TAREA],r[CFG.X.TEMA],r[CFG.X.CANTIDAD]])};
+    return `<div class="selectrow"><label>Persona o empresa</label>${searchSelectHtml("cli-pick",empresas.map(e=>({value:e.ruc,label:e.razon||e.ruc,sub:e.ruc})),cliSel,"Buscar RUC o razón social…")}</div>
+      <section class="grid grid-kpi">
+        ${kpiCard({name:"Servicios recibidos",icon:I.layers,tone:"purple",value:fmt(wvSum(emp.rows)),foot:"Suma de CANTIDAD"})}
+        ${kpiCard({name:"Días atendidos",icon:I.calendar,tone:"blue",value:fmt(byDate.size),foot:"Incluye inicio y fin"})}
+        ${kpiCard({name:"Especialistas",icon:I.user,tone:"purple",value:fmt(wvUniq(emp.rows,r=>r[CFG.X.ESPECIALISTA])),foot:"Atendieron a este RUC"})}
+      </section>
+      ${panel("Calendario de intervenciones",`${emp.razon||emp.ruc} · selecciona un día resaltado para ver quién atendió y qué servicio ejecutó`,
+        months.length?`<div class="cal-grid wv-calendar">${months.map(mm=>renderWvMonth(mm)).join("")}</div>`:CH.empty("No hay fechas válidas para este RUC"))}
+      <div class="card" id="wv-day-detail" style="padding:18px;margin-bottom:18px">Selecciona una fecha del calendario para ver el detalle.</div>
+      ${wvTable(emp.rows,"wv-ruc-table","Historial completo de intervenciones")}`;
   }
-
-  const isoLocal = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-  // ---- Calendario · modo Puntos de intervención (programado.xlsx) ----------
-  function viewCalIntervencion() {
-    const sub = "Fechas programadas de intervención · data/programado.xlsx";
-    if (!STORE.programado || !STORE.programado.length)
-      return `${sectionHead("Puntos de intervención", sub)}
-        <div class="empty" style="min-height:220px">No se encontró <code>data/programado.xlsx</code> (o está vacío).<br>
-        Agrégalo con las fechas programadas (CdD-FEST / WORLD-VISION) para ver este calendario.</div>`;
-    const prog = D.filtrarProgramado(STORE, FILTER).filter((r) => r.FECHA instanceof Date && !isNaN(r.FECHA));
-    if (!prog.length)
-      return `${sectionHead("Puntos de intervención", sub)}
-        <div class="empty" style="min-height:220px">No hay fechas programadas para los filtros actuales.</div>`;
-
-    const puntos = Array.from(new Set(prog.map((r) => r.PUNTO))).sort((a, b) => String(a).localeCompare(b, "es"));
-    const colorOf = new Map(puntos.map((p, i) => [p, PUNTO_COLORS[i % PUNTO_COLORS.length]]));
-
-    const monthMap = new Map();
-    prog.forEach((r) => {
-      const d = r.FECHA, key = d.getFullYear() + "-" + (d.getMonth() + 1);
-      if (!monthMap.has(key)) monthMap.set(key, { year: d.getFullYear(), month: d.getMonth() + 1, days: new Map() });
-      const mm = monthMap.get(key), day = d.getDate();
-      if (!mm.days.has(day)) mm.days.set(day, []);
-      mm.days.get(day).push(r);
-    });
-    const months = Array.from(monthMap.values()).sort((a, b) => a.year - b.year || a.month - b.month);
-
-    const esps = new Set(prog.map((r) => r.ESPECIALISTA).filter((v) => v != null && v !== ""));
-    const metaCant = prog.reduce((a, r) => a + (r.META_CANTIDAD || 0), 0);
-    const kpis = [
-      kpiCard({
-        name: "Intervenciones programadas", icon: I.calendar, tone: "purple", value: fmt(prog.length),
-        foot: `<span class="muted">fechas en el calendario</span>`
-      }),
-      kpiCard({
-        name: "Puntos de intervención", icon: I.pin, tone: "blue", value: fmt(puntos.length),
-        foot: `<span class="muted">ubicaciones distintas</span>`
-      }),
-      kpiCard({
-        name: "Meta (cantidad)", icon: I.target, tone: "purple", value: fmt(metaCant),
-        foot: `<span class="muted">servicios programados</span>`
-      }),
-      kpiCard({
-        name: "Especialistas", icon: I.user, tone: "blue", value: fmt(esps.size),
-        foot: `<span class="muted">asignados</span>`
-      }),
-    ].join("");
-
-    const legend = `<div class="cal-legend-punto">${puntos.map((p) =>
-      `<span><i style="background:${colorOf.get(p)}"></i>${esc(p)}</span>`).join("")}</div>`;
-
-    lastExport = {
-      filename: "intervenciones_programadas.csv",
-      columns: ["Fecha", "Punto", "Programa", "Especialista", "Turno", "Tipo servicio", "Tipo tarea", "Temática", "Meta cantidad"],
-      rows: prog.slice().sort((a, b) => a.FECHA - b.FECHA).map((r) => [
-        isoLocal(r.FECHA), r.PUNTO, r.PROGRAMA, r.ESPECIALISTA, r.TURNO, r.TIPO_SERVICIO, r.TIPO_TAREA, r.TEMATICA, Math.round(r.META_CANTIDAD)])
-    };
-
-    return `${sectionHead("Puntos de intervención", sub)}
-      <section class="grid grid-kpi">${kpis}</section>
-      ${panel("Fechas de intervención por mes", "clic en un día para ver el detalle abajo · el color indica el punto de intervención",
-      `<div class="cal-grid">${months.map((mm) => renderMonthIntervencion(mm, colorOf)).join("")}</div>${legend}`)}
-      <section class="card tablecard" id="cal-detail">
-        <div class="thead"><div><h3>Detalle del día</h3><div class="sub">Haz clic en un día con intervención para ver los servicios programados</div></div></div>
-      </section>`;
-  }
-
-  function renderMonthIntervencion(mm, colorOf) {
-    const dows = ["L", "M", "M", "J", "V", "S", "D"];
-    const daysInMonth = new Date(mm.year, mm.month, 0).getDate();
-    const offset = (new Date(mm.year, mm.month - 1, 1).getDay() + 6) % 7;
-    const cells = [];
-    for (let i = 0; i < offset; i++) cells.push(`<div class="cal-day empty"></div>`);
-    for (let d = 1; d <= daysInMonth; d++) {
-      const items = mm.days.get(d);
-      if (!items) { cells.push(`<div class="cal-day">${d}</div>`); continue; }
-      const distinct = Array.from(new Set(items.map((r) => r.PUNTO)));
-      const colors = distinct.map((p) => colorOf.get(p) || COL.accent);
-      // Varios puntos ese día → franjas verticales, un color por punto
-      const bg = colors.length === 1 ? colors[0]
-        : `linear-gradient(90deg, ${colors.map((c, i) =>
-          `${c} ${(i / colors.length * 100).toFixed(1)}% ${((i + 1) / colors.length * 100).toFixed(1)}%`).join(", ")})`;
-      const iso = `${mm.year}-${String(mm.month).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
-      const cnt = items.length > 1 ? `<span class="cal-cnt">${items.length}</span>` : "";
-      cells.push(`<div class="cal-day on" data-date="${iso}" style="background:${bg};cursor:pointer" title="${esc(distinct.join(" · "))} — clic para ver el detalle">${d}${cnt}</div>`);
+  function viewWvEspecialista(rows) {
+    const byEsp = new Map();
+    for (const r of rows) {
+      const nombre = wvText(r[CFG.X.ESPECIALISTA]);
+      if (!nombre) continue;
+      if (!byEsp.has(nombre)) byEsp.set(nombre, []);
+      byEsp.get(nombre).push(r);
     }
-    return `<div class="cal-month">
-      <h4>${esc(CFG.MESES_NOMBRE[mm.month] || mm.month)} ${mm.year}</h4>
-      <div class="cal-week dow">${dows.map((x) => `<div class="cal-dow">${x}</div>`).join("")}</div>
-      <div class="cal-week">${cells.join("")}</div>
-    </div>`;
+    const especialistas = [...byEsp.keys()].sort((a,b)=>a.localeCompare(b,"es"));
+    if (!especialistas.length) return noData("No hay especialistas registrados para estas intervenciones.");
+    if (!wvEspSel || !byEsp.has(wvEspSel)) wvEspSel = especialistas[0];
+    const items=byEsp.get(wvEspSel), {byDate,months}=wvCalendarData(items), temas=new Map();
+    for(const r of items){const tema=wvText(r[CFG.X.TEMA])||"Sin temática";
+      temas.set(tema,(temas.get(tema)||0)+(Number(r[CFG.X.CANTIDAD])||0));}
+    const temaOrden = [...temas].sort((a,b)=>b[1]-a[1]);
+    lastExport={filename:"worldvision_especialista_"+wvEspSel.replace(/[^a-z0-9]+/gi,"_")+".csv",
+      columns:["Fecha","RUC","Razón social","Especialista","Servicio","Tarea","Temática","Cantidad"],
+      rows:items.map(r=>[wvDate(r[CFG.X.FECHA]),r[CFG.X.RUC],r[CFG.X.RAZON],r[CFG.X.ESPECIALISTA],r[CFG.X.SERVICIO],r[CFG.X.TAREA],r[CFG.X.TEMA],r[CFG.X.CANTIDAD]])};
+    return `<div class="selectrow"><label>Elegir especialista</label>${searchSelectHtml("wv-esp-pick",especialistas.map(nombre=>({value:nombre,label:nombre,sub:`${fmt(wvSum(byEsp.get(nombre)))} servicios`})),wvEspSel,"Buscar especialista…")}</div>
+      <section class="grid grid-kpi">
+        ${kpiCard({name:"Servicios ejecutados",icon:I.layers,tone:"blue",value:fmt(wvSum(items)),foot:"Suma de CANTIDAD"})}
+        ${kpiCard({name:"Días de intervención",icon:I.calendar,tone:"purple",value:fmt(byDate.size),foot:"Incluye días entre inicio y fin"})}
+        ${kpiCard({name:"RUC atendidos",icon:I.building,tone:"blue",value:fmt(wvUniq(items,r=>wvText(r[CFG.X.RUC]))),foot:"Personas o empresas distintas"})}
+        ${kpiCard({name:"Temáticas",icon:I.puzzle,tone:"purple",value:fmt(temas.size),foot:"Temas diferentes abordados"})}
+      </section>
+      ${panel("Temáticas que abordó", "Selecciona un tema para identificarlo visualmente en el resumen", `<div class="wv-themes">${temaOrden.map(([tema,n],i)=>`<span class="wv-theme" title="${esc(tema)}: ${fmt(n)} servicios"><i style="background:${PUNTO_COLORS[i%PUNTO_COLORS.length]}"></i>${esc(tema)} <b>${fmt(n)}</b></span>`).join("")}</div>`)}
+      ${panel("Calendario de salidas",`${wvEspSel} · días marcados con intervenciones registradas; selecciona un día para consultar empresas y temáticas`,months.length?`<div class="cal-grid wv-calendar">${months.map(mm=>renderWvMonth(mm)).join("")}</div><div class="wv-calendar-key"><span class="wv-key-dot"></span> Día con intervención · número de registros activos <span class="wv-key-hint">El número indica servicios ejecutados ese día</span></div>`:CH.empty("No hay fechas válidas para este especialista"))}
+      <div class="card" id="wv-day-detail" style="padding:18px;margin-bottom:18px">Selecciona un día resaltado para ver las empresas atendidas y las temáticas.</div>
+      ${wvTable(items,"wv-esp-table","Historial completo de salidas y servicios")}`;
   }
-
-  function renderCalDetail(dateIso, items) {
-    const el = document.getElementById("cal-detail");
-    if (!el) return;
-    const [y, m, d] = dateIso.split("-");
-    const titulo = `${+d} de ${CFG.MESES_NOMBRE[+m] || m} ${y}`;
-    if (!items.length) {
-      el.innerHTML = `<div class="thead"><div><h3>${esc(titulo)}</h3><div class="sub">Sin intervenciones programadas</div></div></div>`;
+  function renderWvMonth(mm){
+    const dows=["L","M","M","J","V","S","D"], n=new Date(mm.year,mm.month,0).getDate(),offset=(new Date(mm.year,mm.month-1,1).getDay()+6)%7;
+    const cells=Array.from({length:offset},()=>'<div class="cal-day empty"></div>');
+    for(let day=1;day<=n;day++){const count=mm.days.get(day)||0,iso=`${mm.year}-${String(mm.month).padStart(2,"0")}-${String(day).padStart(2,"0")}`;
+      cells.push(`<div class="cal-day ${count?`on lv${Math.min(4,Math.max(1,Math.ceil(count)))}`:""}" ${count?`data-wv-date="${iso}" role="button" tabindex="0" title="${fmt(count)} intervenciones activas; ver detalle"`:""}>${day}${count>1?`<span class="cal-cnt">${fmt(count)}</span>`:""}</div>`);
+    }
+    return `<div class="cal-month"><h4>${esc(CFG.MESES_NOMBRE[mm.month])} ${mm.year}</h4><div class="cal-week dow">${dows.map(x=>`<div class="cal-dow">${x}</div>`).join("")}</div><div class="cal-week">${cells.join("")}</div></div>`;
+  }
+  function afterCalendario(){
+    document.querySelectorAll("#cal-tabs [data-mode]").forEach(b=>b.addEventListener("click",()=>{calMode=b.dataset.mode;renderView();}));
+    const rows=wvRows();
+    if(calMode==="resumen"){wvMountTable("wv-general-table",rows);return;}
+    if(calMode==="especialista") {
+      const names=[...new Set(rows.map(r=>wvText(r[CFG.X.ESPECIALISTA])).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+      wireSearchSelect("wv-esp-pick",names.map(n=>({value:n,label:n,sub:`${fmt(wvSum(rows.filter(r=>wvText(r[CFG.X.ESPECIALISTA])===n)))} servicios`})),v=>{wvEspSel=v;renderView();});
+      const espRows=rows.filter(r=>wvText(r[CFG.X.ESPECIALISTA])===wvEspSel);
+      wvMountTable("wv-esp-table",espRows);
+      wireWvDays(espRows,true);
       return;
     }
-    const rows = items.map((r) => `<tr>
-      <td class="name">${esc(r.PUNTO)}</td>
-      <td>${esc(r.PROGRAMA || "")}</td>
-      <td>${esc(r.ESPECIALISTA || "")}</td>
-      <td>${r.TURNO ? `<span class="badge neutral"><i></i>${esc(r.TURNO)}</span>` : ""}</td>
-      <td>${esc(r.TIPO_SERVICIO || "")}</td>
-      <td>${esc(r.TIPO_TAREA || "")}</td>
-      <td>${esc(r.TEMATICA || "")}</td>
-      <td class="num strong">${fmt(r.META_CANTIDAD)}</td>
-    </tr>`).join("");
-    const totalMeta = items.reduce((a, r) => a + (r.META_CANTIDAD || 0), 0);
-    el.innerHTML = `<div class="thead"><div><h3>Intervenciones del ${esc(titulo)}</h3><div class="sub">${items.length} programada(s) · meta total ${fmt(totalMeta)}</div></div></div>
-      <div class="tablewrap"><table class="dt"><thead><tr>
-        <th>Punto</th><th>Programa</th><th>Especialista</th><th>Turno</th><th>Tipo de servicio</th><th>Tipo de tarea</th><th>Temática</th><th class="num">Meta</th>
-      </tr></thead><tbody>${rows}</tbody></table></div>`;
-    el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    const byRuc=new Map();rows.forEach(r=>{const ruc=wvText(r[CFG.X.RUC]);if(ruc&&!byRuc.has(ruc))byRuc.set(ruc,{value:ruc,label:wvText(r[CFG.X.RAZON])||ruc,sub:ruc});});
+    wireSearchSelect("cli-pick",[...byRuc.values()],v=>{cliSel=v;renderView();});
+    const empRows=rows.filter(r=>wvText(r[CFG.X.RUC])===cliSel);
+    wvMountTable("wv-ruc-table",empRows);
+    wireWvDays(empRows,false);
   }
 
-  function afterCalendario() {
-    const tabs = document.getElementById("cal-tabs");
-    if (tabs) tabs.querySelectorAll(".seg").forEach((b) =>
-      b.addEventListener("click", () => { if (calMode !== b.dataset.mode) { calMode = b.dataset.mode; renderView(); } }));
-
-    if (calMode === "empresa" && document.getElementById("cli-pick")) {
-      const { eje } = currentData();
-      const byRuc = new Map();
-      eje.forEach((r) => {
-        const ruc = r[CFG.X.RUC];
-        if (!byRuc.has(ruc)) byRuc.set(ruc, { ruc, razon: r[CFG.X.RAZON] });
-      });
-      const items = Array.from(byRuc.values()).map((e) => ({ value: e.ruc, label: e.razon || e.ruc, sub: e.ruc }));
-      wireSearchSelect("cli-pick", items, (v) => { cliSel = v; renderView(); });
-    }
-
-    if (calMode === "intervencion") {
-      const prog = D.filtrarProgramado(STORE, FILTER).filter((r) => r.FECHA instanceof Date && !isNaN(r.FECHA));
-      const byDate = new Map();
-      prog.forEach((r) => {
-        const iso = isoLocal(r.FECHA);
-        if (!byDate.has(iso)) byDate.set(iso, []);
-        byDate.get(iso).push(r);
-      });
-      document.querySelectorAll(".cal-day[data-date]").forEach((cell) =>
-        cell.addEventListener("click", () => {
-          document.querySelectorAll(".cal-day.sel").forEach((c) => c.classList.remove("sel"));
-          cell.classList.add("sel");
-          renderCalDetail(cell.dataset.date, byDate.get(cell.dataset.date) || []);
-        }));
-    }
+  function wireWvDays(rows, bySpecialist){
+    const {byDate}=wvCalendarData(rows);
+    document.querySelectorAll("[data-wv-date]").forEach(cell=>{
+      const show=()=>{
+        document.querySelectorAll("[data-wv-date].sel").forEach(c=>c.classList.remove("sel"));cell.classList.add("sel");
+        const date=cell.dataset.wvDate,items=byDate.get(date)||[],el=document.getElementById("wv-day-detail");
+        const head=bySpecialist?"RUC / Empresa":"Especialista";
+        const person=r=>bySpecialist?`${esc(r[CFG.X.RAZON]||"Sin razón social")}<br><small>${esc(r[CFG.X.RUC])}</small>`:esc(r[CFG.X.ESPECIALISTA]);
+        el.innerHTML=`<h3>Intervenciones del ${esc(date)}</h3><div class="sub">${fmt(items.length)} intervenciones activas · el servicio se contabiliza en su fecha de fin</div><div class="tablewrap"><table class="dt"><thead><tr><th>${head}</th><th>Inicio</th><th>Fin</th><th>Servicio</th><th>Tarea</th><th>Temática</th><th>Cantidad</th></tr></thead><tbody>${items.map(r=>`<tr><td>${person(r)}</td><td>${esc(wvDate(r[CFG.X.FECHA_I])||wvDate(r[CFG.X.FECHA]))}</td><td>${esc(wvDate(r[CFG.X.FECHA]))}</td><td>${esc(r[CFG.X.SERVICIO])}</td><td>${esc(r[CFG.X.TAREA])}</td><td>${esc(r[CFG.X.TEMA])}</td><td>${fmt(r[CFG.X.CANTIDAD])}</td></tr>`).join("")}</tbody></table></div>`;
+      };cell.addEventListener("click",show);cell.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();show();}});
+    });
   }
 
   // ---- CdD-FEST: planificador (dos modos: por UP / vista general) ----------
@@ -1453,7 +1380,7 @@
     // CdD-FEST tiene su propio selector y no usa los filtros globales
     // (Programa/Mes/Especialista) — se oculta la barra en esa pestaña.
     const fb = document.getElementById("filterbar");
-    if (fb) fb.style.display = (VIEW === "cddfest") ? "none" : "";
+    if (fb) fb.style.display = (VIEW === "cddfest" || VIEW === "calendario") ? "none" : "";
     const host = document.getElementById("view");
     lastExport = null;
     host.className = "view";
