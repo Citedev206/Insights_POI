@@ -35,7 +35,7 @@
     for (const r of rows) {
       const k = r[keyCol];
       if (!m.has(k)) m.set(k, new Set());
-      m.get(k).add(r[distinctCol]);
+      if (r[distinctCol] != null && String(r[distinctCol]).trim()) m.get(k).add(String(r[distinctCol]).trim());
     }
     const out = new Map();
     for (const [k, s] of m) out.set(k, s.size);
@@ -43,7 +43,7 @@
   }
   function nunique(rows, col, filterFn) {
     const s = new Set();
-    for (const r of rows) { if (filterFn && !filterFn(r)) continue; s.add(r[col]); }
+    for (const r of rows) { if (filterFn && !filterFn(r)) continue; if (r[col] != null && String(r[col]).trim()) s.add(String(r[col]).trim()); }
     return s.size;
   }
   const sumCol = (rows, col) => rows.reduce((a, r) => a + (Number(r[col]) || 0), 0);
@@ -174,6 +174,7 @@
     const porRuc = new Map();
     for (const r of eje) {
       const ruc = r[X.RUC];
+      if (ruc == null || !String(ruc).trim()) continue;
       if (!porRuc.has(ruc)) porRuc.set(ruc, {
         RUC: ruc, Razon: r[X.RAZON], mesesSet: new Set(), Servicios: 0,
         Focalizado: false, temas: new Set(), tipoContribCount: new Map(),
@@ -209,7 +210,7 @@
     for (const o of porRuc.values()) {
       const mesesArr = Array.from(o.mesesSet).filter((m) => m >= 1 && m <= 12)
         .sort((a, b) => a - b);
-      let tipo = "Recurrente";
+      let tipo = bd && bd.length ? "Recurrente" : "Sin histórico";
       if (rucsNuevos.has(o.RUC)) tipo = "Nuevo";
       else if (rucsReeng.has(o.RUC)) tipo = "Reenganchado";
       let tipoContrib = "Sin clasificar", tipoContribN = -1;
@@ -226,8 +227,7 @@
       });
     }
 
-    const nuevos = bd && bd.length ? rucsNuevos.size
-      : tabla.filter((t) => t.NMeses === 1).length;
+    const nuevos = rucsNuevos.size;
     const reenganchados = bd && bd.length ? rucsReeng.size : 0;
     const focalizados = tabla.filter((t) => t.Focalizado).length;
     return {
@@ -240,6 +240,7 @@
     const primer = new Map();     // ruc -> primer mes
     for (const r of eje) {
       const ruc = r[X.RUC], mes = r[X.MES];
+      if (ruc == null || !String(ruc).trim()) continue;
       primer.set(ruc, Math.min(primer.has(ruc) ? primer.get(ruc) : Infinity, mes));
     }
     const nuevosMes = new Map(), activosMes = new Map();
@@ -247,6 +248,7 @@
       nuevosMes.set(mes, (nuevosMes.get(mes) || new Set()).add(ruc));
     const activosSet = new Map();
     for (const r of eje) {
+      if (r[X.RUC] == null || !String(r[X.RUC]).trim()) continue;
       const mes = r[X.MES];
       if (!activosSet.has(mes)) activosSet.set(mes, new Set());
       activosSet.get(mes).add(r[X.RUC]);
@@ -301,8 +303,8 @@
     }
     const espsMeta = espsConMeta instanceof Set ? espsConMeta : new Set(espsConMeta || []);
     const Nesp = Math.max(espsMeta.size, 1);
-    const targetFoc = Math.ceil(metaFocTotal / Nesp);
-    const targetNoFoc = Math.ceil(metaNoFocTotal / Nesp);
+    const targetFoc = metaFocTotal / Nesp;
+    const targetNoFoc = metaNoFocTotal / Nesp;
     const allEsps = new Set([...tally.keys(), ...espsMeta]);
     const rows = [];
     for (const esp of allEsps) {

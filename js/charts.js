@@ -121,7 +121,7 @@
         <div class="${labCls}" title="${esc(r.Dim)}">${esc(r.Dim)}</div>
         <div class="hbar-line">
           <div class="hbar-track"><span class="hbar-fill" style="width:${Math.max(w, 0.5).toFixed(1)}%;background:${c}"></span><span class="hbar-guide" style="left:${guideLeft.toFixed(1)}%"></span></div>
-          <span class="hbar-num">${Math.round(v)}%</span>
+          <span class="hbar-num">${fmt1(v)}%</span>
         </div></div>`;
     }).join("");
     return `<div class="hbars" style="--gutter:${g}px">${body}</div>`;
@@ -291,7 +291,7 @@
       }
       const tone = global.POI.semaforo(cell.pct);
       const cssTone = tone === "verde" ? "green" : tone === "amarillo" ? "amber" : tone === "naranja" ? "orange" : "red";
-      const pctTxt = Math.round(cell.pct) + "%";
+      const pctTxt = fmt1(cell.pct) + "%";
       const detail = cell.meta != null ? `<span class="hm-detail">${fmt(cell.ejec)}/${fmt(cell.meta)}</span>` : "";
       return `<div class="hm-cell hm-${cssTone}" title="${pctTxt}${cell.meta != null ? ` · Ejec ${fmt(cell.ejec)} / Prog ${fmt(cell.meta)}` : ""}"><span class="hm-pct">${pctTxt}</span>${detail}</div>`;
     }).join("")}

@@ -1,7 +1,7 @@
-# CITE · Dashboard POI 2026
+# CITE · Seguimiento de programas 2026
 
-Tablero de **seguimiento y monitoreo de metas** del Plan Operativo Institucional
-2026: META vs EJECUCIÓN, cumplimiento por especialista, programa presupuestal,
+Tablero de **seguimiento de servicios, clientes y metas** de los programas del CITE en
+2026 (POI, CdD-FEST y los programas disponibles en los datos): META vs EJECUCIÓN, cumplimiento por especialista, programa presupuestal,
 clientes (nuevos / reenganchados / focalizados) y estructura de servicios.
 
 Es un **sitio estático** (HTML + CSS + JavaScript). Lee los Excel de `data/`
@@ -248,3 +248,17 @@ indicando cuántos servicios se consolidaron en esa fila.
 Paleta institucional morada (`#5C1F5C` / `#7A2A7A`) con azul complementario,
 tipografía IBM Plex y semáforo verde/ámbar/rojo. La guía de diseño es
 `Dashboard POI 2026.dc.html`.
+
+## Revisión de indicadores y experiencia de uso
+
+- “Todos” incluye todos los programas tanto para servicios como para clientes y sus metas.
+- Los clientes se cuentan por RUC no vacío. Un mismo cliente puede aparecer con varios especialistas; no se deben sumar esas filas para obtener el total institucional.
+- Las metas de clientes se suman por mes y programa; no equivalen necesariamente a una meta anual de clientes únicos. Al filtrar especialistas se oculta la comparación con la meta institucional. Si falta cobertura de metas para algún programa atendido, también se omite esa comparación.
+- La tabla de referencia de clientes por especialista usa solamente POI, conserva el equipo completo para repartir la meta y señala que el reparto es referencial. Las fracciones no se redondean hacia arriba.
+- Sin histórico no se clasifican clientes como nuevos o reenganchados. El gráfico mensual describe primera atención o atención repetida dentro del período, que es un concepto distinto.
+- Los porcentajes conservan un decimal para evitar que 79.5 % aparezca como 80 % con el estado de alerta.
+- La exportación solo se habilita cuando la vista dispone de datos exportables. Los filtros se cierran con Escape y tienen indicadores de foco para teclado.
+
+Validación local de cálculos y generación de vistas con los Excel actuales: `node tests/dashboard.test.cjs`.
+
+En Especialistas → CdD-FEST, las UP únicas atendidas y la suma de metas por actividad se muestran en columnas separadas, sin barra ni porcentaje: una UP puede estar prevista para varias actividades y esas unidades no son directamente comparables.

@@ -448,11 +448,7 @@
     let cli = data.clientes || [];
     if (flt.meses && flt.meses.length) cli = cli.filter((r) => flt.meses.includes(r.MES));
     if (flt.programas && flt.programas.length) {
-      cli = cli.filter((r) => r.PROGRAMA == null || flt.programas.includes(r.PROGRAMA));
-    } else if (CFG.PROGRAMA_PRINCIPAL &&
-               cli.some((r) => r.PROGRAMA === CFG.PROGRAMA_PRINCIPAL)) {
-      // Sin filtro de programa: por defecto solo el programa principal (POI)
-      cli = cli.filter((r) => r.PROGRAMA === CFG.PROGRAMA_PRINCIPAL);
+      cli = cli.filter((r) => flt.programas.includes(r.PROGRAMA || CFG.PROGRAMA_PRINCIPAL));
     }
     return cli;
   }

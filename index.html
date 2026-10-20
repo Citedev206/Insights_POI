@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Dashboard 2026 · CITE</title>
-  <meta name="description" content="Seguimiento y monitoreo de metas del Plan Operativo Institucional 2026 — CITE.">
+  <meta name="description" content="Seguimiento de servicios, clientes y metas de los programas del CITE en 2026.">
 
   <link rel="icon" type="image/svg+xml"
 href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect x='8' y='36' width='10' height='20' rx='2' fill='%233B82F6'/%3E%3Crect x='26' y='24' width='10' height='32' rx='2' fill='%2310B981'/%3E%3Crect x='44' y='12' width='10' height='44' rx='2' fill='%23F59E0B'/%3E%3Cpath d='M8 46 L24 30 L38 34 L56 12' stroke='%23EF4444' stroke-width='5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='56' cy='12' r='4' fill='%23EF4444'/%3E%3C/svg%3E">
@@ -12,7 +12,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=23">
+  <link rel="stylesheet" href="css/styles.css?v=24">
   <style>
     /* World Vision: azul cielo, amarillo, naranja y verde. Intensidad por registros activos. */
     .wv-calendar .cal-day.on {background:#d9edff!important;color:#164a78!important;border:1px solid #8dc8f6!important;cursor:pointer;transition:background .15s,transform .15s,box-shadow .15s}
@@ -39,7 +39,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
            onerror="this.parentNode.textContent='CT'"></div>
       <nav id="rail-nav" style="display:flex;flex-direction:column;gap:6px;align-items:center;"></nav>
       <div class="rail-spacer"></div>
-      <div class="rail-user" title="Sesión">POI</div>
+      <div class="rail-user" title="CITE · seguimiento de programas">CITE</div>
     </aside>
 
     <!-- PRINCIPAL -->
@@ -51,7 +51,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
             <h1>Dashboard 2026</h1>
             <span class="pill-inst">CITE TEXTIL CAMÉLIDOS · CUSCO</span>
           </div>
-          <div class="sub" id="view-sub">Plan Operativo Institucional · Seguimiento y monitoreo de metas</div>
+          <div class="sub" id="view-sub">Servicios, clientes y metas · Seguimiento de programas</div>
         </div>
         <div class="brandmarks">
           <img src="assets/produce.png" alt="Ministerio de la Producción"
@@ -70,7 +70,7 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
         <div class="view" id="view">
           <div class="state"><div class="box">
             <div class="spinner"></div>
-            <h3>Cargando datos del POI…</h3>
+            <h3>Cargando datos de los programas…</h3>
             <p>Leyendo los archivos de <code>data/</code></p>
           </div></div>
         </div>
@@ -80,9 +80,9 @@ href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 
 
   <!-- Librerías y aplicación (todo local, sin servidor de aplicación) -->
   <script src="js/lib/xlsx.full.min.js"></script>
-  <script src="js/data.js?v=23"></script>
-  <script src="js/metrics.js?v=23"></script>
-  <script src="js/charts.js?v=23"></script>
-  <script src="js/app.js?v=23"></script>
+  <script src="js/data.js?v=24"></script>
+  <script src="js/metrics.js?v=24"></script>
+  <script src="js/charts.js?v=24"></script>
+  <script src="js/app.js?v=24"></script>
 </body>
 </html>

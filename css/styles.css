@@ -128,7 +128,7 @@ body{
 .filterbar{
   background:var(--surface); border-bottom:1px solid var(--border);
   padding:12px 28px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-  position:sticky; top:64px; z-index:15;
+  position:relative; z-index:15;
 }
 .filter-label{
   display:inline-flex; align-items:center; gap:7px; font-size:.72rem; font-weight:600;
@@ -591,3 +591,12 @@ tr.row-expand td{ background:#FBFAFC; padding:14px 16px; border-bottom:1px solid
 @media (prefers-reduced-motion:reduce){
   *{ animation:none !important; transition:none !important; }
 }
+
+/* Contexto y accesibilidad del seguimiento de programas */
+.scope-note{padding:12px 16px;margin-bottom:20px;border:1px solid var(--border-soft);border-left:3px solid var(--purple);border-radius:8px;background:var(--surface);color:var(--text2);font-size:.8rem;line-height:1.6;overflow-wrap:anywhere}
+.prog-detail{font-size:.74rem;margin:5px 0 8px}
+button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:3px}
+button:disabled{opacity:.5;cursor:not-allowed}
+.kpi-foot{flex-wrap:wrap;line-height:1.5}
+.filterbar{flex-wrap:wrap}
+@media(max-width:560px){.titlerow{flex-wrap:wrap}.pill-inst{white-space:normal}.fdrop{max-width:100%}.fdrop-menu{max-width:calc(100vw - 110px)}}
