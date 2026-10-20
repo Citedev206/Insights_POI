@@ -634,6 +634,14 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .service-coverage-track{height:14px}
 .service-coverage-foot{font-size:.72rem;margin-top:3px}
 .service-task-chart{margin-top:18px;display:block}
-.service-task-chart .service-coverage{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 28px}
+.service-task-chart .service-coverage{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
 @media(max-width:800px){.services-visual-grid{grid-template-columns:1fr}.services-complexity{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:560px){.services-complexity,.service-task-chart .service-coverage{grid-template-columns:1fr}}
+
+.service-complexity-filter{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.service-complexity-filter>span{font-size:.76rem;color:var(--text2);margin:0 4px}
+.complexity-chip{border:1px solid var(--border);border-radius:8px;background:var(--surface);padding:8px 13px;font:inherit;font-size:.78rem;cursor:pointer;color:var(--text2)}
+.complexity-chip.active{background:var(--purple);border-color:var(--purple);color:white;font-weight:600}
+.complexity-chip:hover{box-shadow:0 0 0 2px var(--border-soft)}
+
+.service-complexity-filter{flex-basis:100%;margin-top:4px}

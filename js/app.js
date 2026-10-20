@@ -23,6 +23,7 @@
   let cddMode = "up";              // modo CdD-FEST: "up" (por unidad) | "general" (todas)
   let cddDrillGrupo = null;        // componente (1-5) elegido en la Vista general para ver su detalle
   let cddDrillActividad = null;    // código de actividad (p. ej. "3.4") elegido dentro del detalle del componente
+  let svcComplejidadFiltro = null;
   let svcTareaFiltro = null;       // TIPO_SERVICIO elegido en la vista Servicios (null = Todos)
   let lastExport = null;           // datos exportables de la vista activa
 
@@ -682,8 +683,8 @@
     const disponibles = MT.metaVsEjec(ejeGlobal, metGlobal, CFG.X.SERVICIO, CFG.M.SERVICIO);
     if (svcTareaFiltro && !disponibles.some((r) => r.Dim === svcTareaFiltro)) svcTareaFiltro = null;
     const matches = (r, col) => !svcTareaFiltro || MT.normKey(r[col]) === svcTareaFiltro;
-    const eje = ejeGlobal.filter((r) => matches(r, CFG.X.SERVICIO));
-    const met = metGlobal.filter((r) => matches(r, CFG.M.SERVICIO));
+    const eje = ejeGlobal.filter((r) => matches(r, CFG.X.SERVICIO) && (!svcComplejidadFiltro || r[CFG.X.COMPLEJIDAD] === svcComplejidadFiltro));
+    const met = metGlobal.filter((r) => matches(r, CFG.M.SERVICIO) && (!svcComplejidadFiltro || r[CFG.M.COMPLEJIDAD] === svcComplejidadFiltro));
     const porServ = MT.metaVsEjec(eje, met, CFG.X.SERVICIO, CFG.M.SERVICIO);
     const porTarea = MT.metaVsEjec(eje, met, CFG.X.TAREA, CFG.M.TAREA).sort((a, b) => b.Meta - a.Meta);
     const porComp = MT.metaVsEjec(eje, met, CFG.X.COMPLEJIDAD, CFG.M.COMPLEJIDAD, CFG.COMPLEJIDADES);
@@ -703,28 +704,34 @@
     ].join("");
     const selector = `<div class="selectrow service-select"><label for="svc-tarea-pick">Tipo de servicio</label><select class="pick" id="svc-tarea-pick">
       <option value="">Todos los tipos</option>${disponibles.map((r) => `<option value="${esc(r.Dim)}" ${r.Dim === svcTareaFiltro ? "selected" : ""}>${esc(r.Dim)}</option>`).join("")}</select>
-      </div>`;
+      <div class="service-complexity-filter" role="group" aria-label="Filtrar por complejidad" title="Según la complejidad registrada en los datos"><span>Complejidad</span>${[null, ...CFG.COMPLEJIDADES].map((v) => `<button type="button" class="complexity-chip${v === svcComplejidadFiltro ? " active" : ""}" data-complexity="${v || ""}" aria-pressed="${v === svcComplejidadFiltro}">${v || "Todas"}</button>`).join("")}</div></div>`;
     lastExport = {
       filename: "avance_servicios.csv",
-      columns: ["Tipo de servicio", "Meta", "Ejecutado", "Avance por volumen %", "Peso de meta %", "Meta cubierta", "Pendiente", "Sobre meta", "Ejecución sin meta"],
-      rows: porServ.map((r) => [r.Dim, r.Meta, r.Ejecutado, r.Meta > 0 ? r.Cumplimiento : "", balance.meta > 0 ? MT.pct(balance.meta, r.Meta) : "", Math.min(r.Meta, r.Ejecutado), r.Brecha, r.Meta > 0 ? Math.max(0, r.Ejecutado-r.Meta) : 0, r.Meta > 0 ? 0 : r.Ejecutado]),
+      columns: ["Tipo de servicio", "Meta", "Ejecutado", "Avance por volumen %", "Peso de meta %", "Meta cubierta", "Pendiente", "Sobre meta", "Ejecución sin meta", "Complejidad seleccionada"],
+      rows: porServ.map((r) => [r.Dim, r.Meta, r.Ejecutado, r.Meta > 0 ? r.Cumplimiento : "", balance.meta > 0 ? MT.pct(balance.meta, r.Meta) : "", Math.min(r.Meta, r.Ejecutado), r.Brecha, r.Meta > 0 ? Math.max(0, r.Ejecutado-r.Meta) : 0, r.Meta > 0 ? 0 : r.Ejecutado, svcComplejidadFiltro || "Todas"]),
     };
-    return `${sectionHead("Avance de servicios", svcTareaFiltro || "Todos los tipos de servicio")}
+    return `${sectionHead("Avance de servicios", [svcTareaFiltro || "Todos los tipos", svcComplejidadFiltro ? "Complejidad " + svcComplejidadFiltro.toLowerCase() : "Todas las complejidades"].join(" · "))}
       ${selector}<section class="grid grid-kpi">${kpis}</section>
       <section class="services-visual-grid">
-        ${panel("Avance por servicio", "Ejecutado / meta · + excedente", serviceCoverage(porServ, balance.meta))}
+        ${panel(svcComplejidadFiltro ? "Servicios de complejidad " + svcComplejidadFiltro.toLowerCase() : "Avance por servicio", "Ejecutado / meta · + excedente", serviceCoverage(porServ, balance.meta))}
         <aside class="services-complexity">
           ${panel("Por complejidad", "Cantidad de servicios", CH.barsMetaEjec(porComp, { gutter: 65 }), legendMetaEjec)}
-          ${panel("Composición de la ejecución", "Por complejidad", CH.donut(porComp.map((r, i) => ({ label: r.Dim, value: r.Ejecutado, color: [COL.purple, COL.blue, COL.soft][i % 3] })), fmt(balance.ejecutado), "servicios") + CH.legendList(porComp.map((r, i) => ({ label: r.Dim, value: r.Ejecutado, color: [COL.purple, COL.blue, COL.soft][i % 3] }))))}
+          ${panel("Composición de la ejecución", "Por complejidad", CH.donut(porComp.map((r, i) => ({ label: r.Dim, value: r.Ejecutado, color: ({ Alta: COL.purple, Media: COL.blue, Baja: COL.soft })[r.Dim] || COL.muted })), fmt(balance.ejecutado), "servicios") + CH.legendList(porComp.map((r, i) => ({ label: r.Dim, value: r.Ejecutado, color: ({ Alta: COL.purple, Media: COL.blue, Baja: COL.soft })[r.Dim] || COL.muted }))))}
         </aside>
       </section>
-      <details class="service-method" ${svcTareaFiltro ? "open" : ""}><summary>Por tarea · ${percent(tareasBalance.cobertura)}${tareasBalance.cobertura == null ? " (sin meta)" : "% de cobertura"}</summary><div class="service-task-chart">${serviceCoverage(porTarea, tareasBalance.meta)}</div></details>
+      <details class="service-method" ${svcTareaFiltro || svcComplejidadFiltro ? "open" : ""}><summary>Por tarea · ${percent(tareasBalance.cobertura)}${tareasBalance.cobertura == null ? " (sin meta)" : "% de cobertura"}</summary><div class="service-task-chart">${serviceCoverage(porTarea, tareasBalance.meta)}</div></details>
       <details class="service-method"><summary>Cómo se calcula</summary><p>Volumen: ejecutado ÷ meta. Ponderado: peso según la meta y aporte máximo de 100% por tipo. Por tarea se aplica el mismo límite a cada tarea.</p></details>`;
   }
 
   function afterServicios() {
     const pick = document.getElementById("svc-tarea-pick");
     if (pick) pick.addEventListener("change", (e) => { svcTareaFiltro = e.target.value || null; renderView(); });
+    document.querySelectorAll("[data-complexity]").forEach((button) => {
+      button.addEventListener("click", () => {
+        svcComplejidadFiltro = button.dataset.complexity || null;
+        renderView();
+      });
+    });
   }
 
   // Fecha local YYYY-MM-DD compartida por CdD-FEST y calendarios.
@@ -1420,7 +1427,7 @@
 
     document.getElementById("btn-clear").addEventListener("click", () => {
       FILTER.programas = []; FILTER.meses = []; FILTER.especialistas = [];
-      svcTareaFiltro = null;
+      svcTareaFiltro = null; svcComplejidadFiltro = null;
       refreshFilterButtons(); renderView();
     });
     document.getElementById("btn-export").addEventListener("click", exportCSV);
@@ -1515,7 +1522,7 @@
     rail.querySelectorAll(".rail-btn").forEach((b) =>
       b.addEventListener("click", () => {
         VIEW = b.dataset.view;
-        if (VIEW !== "servicios") svcTareaFiltro = null;
+        if (VIEW !== "servicios") { svcTareaFiltro = null; svcComplejidadFiltro = null; }
         if (VIEW !== "cddfest") { cddSel = null; cddMode = "up"; cddDrillGrupo = null; cddDrillActividad = null; }
         location.hash = VIEW;
         renderView();
@@ -1558,7 +1565,7 @@
     const h = (location.hash || "").replace("#", "");
     if (NAV.some((n) => n.id === h) && h !== VIEW) {
       VIEW = h;
-      if (VIEW !== "servicios") svcTareaFiltro = null;
+      if (VIEW !== "servicios") { svcTareaFiltro = null; svcComplejidadFiltro = null; }
       if (VIEW !== "cddfest") { cddSel = null; cddMode = "up"; cddDrillGrupo = null; cddDrillActividad = null; }
       renderView();
     }

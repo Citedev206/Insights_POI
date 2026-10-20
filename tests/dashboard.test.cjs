@@ -16,7 +16,7 @@ ctx.window = ctx;
 vm.createContext(ctx);
 for (const name of ['data', 'metrics', 'charts']) vm.runInContext(fs.readFileSync(path.join(root, `js/${name}.js`), 'utf8'), ctx);
 // Expose renderers only inside this test context; production API stays unchanged.
-vm.runInContext(fs.readFileSync(path.join(root, 'js/app.js'), 'utf8').replace('  // ---- ARRANQUE', '  // ---- ARRANQUE').replace('  window.addEventListener("hashchange"', '  global.testDashboard = { setStore(v) { STORE = v; }, FILTER, VIEWS, metasClientesComparables, selectService(v) { svcTareaFiltro = v; } };\n  window.addEventListener("hashchange"'), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, 'js/app.js'), 'utf8').replace('  // ---- ARRANQUE', '  // ---- ARRANQUE').replace('  window.addEventListener("hashchange"', '  global.testDashboard = { setStore(v) { STORE = v; }, FILTER, VIEWS, metasClientesComparables, selectService(v) { svcTareaFiltro = v; }, selectComplexity(v) { svcComplejidadFiltro = v; }, exportData() { return lastExport; } };\n  window.addEventListener("hashchange"'), ctx);
 (async () => {
   const data = await ctx.POI.data.loadAll();
   const { metrics: m, data: d } = ctx.POI;
@@ -58,6 +58,24 @@ vm.runInContext(fs.readFileSync(path.join(root, 'js/app.js'), 'utf8').replace(' 
     assert.ok(html.includes('selected>'+ctx.POI.charts.esc(service)), 'Selector conserva su valor');
   }
   app.selectService(null);
+  for (const complexity of ctx.POI.CFG.COMPLEJIDADES) {
+    for (const service of [null, ...serviceTypes]) {
+      app.selectComplexity(complexity);
+      app.selectService(service);
+      const html = app.VIEWS.servicios.render();
+      const selected = data.ejecucion.filter(r => r.COMPLEJIDAD === complexity && (!service || m.normKey(r.TIPO_SERVICIO) === service));
+      const selectedMeta = data.metas.filter(r => r.COMPLEJIDAD === complexity && (!service || m.normKey(r.TIPO_SERVICIO) === service));
+      const expected = selected.reduce((n,r) => n+r.CANTIDAD,0);
+      assert.ok(html.includes(`${ctx.POI.charts.fmt(expected)}</div>`), 'KPI respeta servicio y complejidad');
+      const exported = app.exportData();
+      assert.equal(exported.rows.reduce((n,r) => n+r[2],0), expected, 'CSV coincide con el filtro');
+      assert.equal(exported.rows.reduce((n,r) => n+r[1],0), selectedMeta.reduce((n,r) => n+r.META_CANTIDAD,0));
+      assert.ok(exported.rows.every(r => r[9] === complexity));
+    }
+  }
+  app.selectComplexity(null);
+  app.selectService(null);
+
   const programs = [...new Set(data.ejecucion.map(r => r.PROGRAMA))];
   let renders = 0;
   for (const program of [null, ...programs]) {
