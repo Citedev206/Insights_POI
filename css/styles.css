@@ -621,3 +621,19 @@ button:disabled{opacity:.5;cursor:not-allowed}
 .service-method summary{cursor:pointer;font-size:.85rem;font-weight:600}
 .service-method p{font-size:.8rem;line-height:1.7;margin-top:12px;color:var(--text2)}
 .service-method>.card{margin-top:16px}
+
+/* Servicios: lectura gráfica y complejidad visible al costado */
+.services-visual-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(300px,1fr);gap:20px;align-items:start}
+.services-complexity{display:grid;gap:20px;min-width:0}
+.services-visual-grid>.card{min-width:0}
+.service-coverage{gap:14px}
+.service-coverage-row{padding-bottom:12px}
+.service-coverage-heading{align-items:baseline;flex-wrap:nowrap;gap:12px;margin-bottom:7px}
+.service-coverage-heading h4{font-size:.79rem;min-width:0;line-height:1.35}
+.service-percent{font-family:var(--mono);font-size:.8rem;white-space:nowrap}
+.service-coverage-track{height:14px}
+.service-coverage-foot{font-size:.72rem;margin-top:3px}
+.service-task-chart{margin-top:18px;display:block}
+.service-task-chart .service-coverage{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 28px}
+@media(max-width:800px){.services-visual-grid{grid-template-columns:1fr}.services-complexity{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.services-complexity,.service-task-chart .service-coverage{grid-template-columns:1fr}}

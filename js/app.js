@@ -667,12 +667,11 @@
       const pending = Math.max(0, r.Meta - r.Ejecutado);
       const extra = Math.max(0, r.Ejecutado - r.Meta);
       const percent = r.Meta > 0 ? covered / r.Meta * 100 : 0;
-      return `<article class="service-coverage-row">
-        <div class="service-coverage-heading"><h4>${esc(r.Dim)}</h4>
-          <span class="badge ${r.Meta > 0 ? estadoTone[global.POI.semaforo(r.Cumplimiento)] : "neutral"}">${r.Meta > 0 ? fmt1(r.Cumplimiento) + "% de avance" : "Sin meta"}</span></div>
-        <div class="service-coverage-meta">${fmt(r.Ejecutado)} ejecutados / ${fmt(r.Meta)} de meta · ${r.Meta > 0 && totalMeta > 0 ? (r.Meta / totalMeta * 100 < 0.1 ? "<0.1" : fmt1(r.Meta / totalMeta * 100)) + "% del peso de la meta" : "No aporta a la cobertura ponderada"}</div>
-        ${r.Meta > 0 ? `<div class="service-coverage-track" role="img" aria-label="${esc(r.Dim)}: ${fmt1(percent)}% de la meta cubierto; faltan ${fmt(pending)}"><span style="width:${percent}%;background:${CH.semColor(r.Cumplimiento)}"></span></div>` : ""}
-        <div class="service-coverage-foot"><span>${r.Meta > 0 ? `Meta cubierta: ${fmt(covered)} · pendiente: ${fmt(pending)}` : `Ejecución sin meta: ${fmt(r.Ejecutado)}`}</span>${extra > 0 && r.Meta > 0 ? `<span class="service-extra">+${fmt(extra)} sobre la meta</span>` : ""}</div>
+      const tip = `${r.Dim}: ${fmt(r.Ejecutado)} ejecutados; meta ${fmt(r.Meta)}; pendiente ${fmt(pending)}; excedente ${r.Meta > 0 ? fmt(extra) : "sin meta"}; peso ${totalMeta > 0 ? fmt1(r.Meta / totalMeta * 100) : 0}%`;
+      return `<article class="service-coverage-row" title="${esc(tip)}">
+        <div class="service-coverage-heading"><h4>${esc(r.Dim)}</h4><strong class="service-percent" style="color:${r.Meta > 0 ? CH.semColor(r.Cumplimiento) : COL.muted}">${r.Meta > 0 ? fmt1(r.Cumplimiento) + "%" : "Sin meta"}</strong></div>
+        <div class="service-coverage-track" role="img" aria-label="${esc(tip)}"><span style="width:${percent}%;background:${r.Meta > 0 ? CH.semColor(r.Cumplimiento) : COL.muted}"></span></div>
+        <div class="service-coverage-foot"><span>${fmt(r.Ejecutado)} / ${fmt(r.Meta)}${r.Meta > 0 ? "" : " · sin meta"}</span>${extra > 0 && r.Meta > 0 ? `<span class="service-extra">+${fmt(extra)}</span>` : ""}</div>
       </article>`;
     }).join("")}</div>`;
   }
@@ -693,18 +692,18 @@
     const percent = (v) => v == null ? "—" : fmt1(v);
     const kpis = [
       kpiCard({ name: "Servicios ejecutados", icon: I.layers, tone: "purple", value: fmt(balance.ejecutado),
-        foot: `<span class="muted">Meta: ${fmt(balance.meta)} servicios · ${fmt(eje.length)} registros</span>` }),
+        foot: `<span class="muted">Meta ${fmt(balance.meta)}</span>` }),
       kpiCard({ name: "Avance por volumen", icon: I.spark, tone: "purple", value: percent(balance.avance), unit: balance.avance == null ? "" : "%",
-        bar: balance.avance, foot: `<span class="muted">${balance.avance == null ? "Sin meta para comparar" : "Total ejecutado ÷ meta total; permite compensación"}</span>` }),
+        bar: balance.avance, foot: `<span class="muted">${balance.avance == null ? "Sin meta para comparar" : "Incluye excedentes"}</span>` }),
       kpiCard({ name: "Cobertura ponderada", icon: I.target, tone: "blue", value: percent(balance.cobertura), unit: balance.cobertura == null ? "" : "%",
         bar: balance.cobertura, barColor: balance.cobertura == null ? COL.muted : CH.semColor(balance.cobertura),
-        foot: `<span class="muted">${balance.cobertura == null ? "Sin meta para ponderar" : `${fmt(balance.cubierto)} de ${fmt(balance.meta)} · máximo 100% por tipo`}</span>` }),
+        foot: `<span class="muted">${balance.cobertura == null ? "Sin meta para ponderar" : `Máximo 100% por tipo`}</span>` }),
       kpiCard({ name: "Meta pendiente por tipo", icon: I.alert, tone: balance.pendiente ? "amber" : "green", value: fmt(balance.pendiente),
-        foot: `<span class="muted">${fmt(balance.excedente)} sobre meta${balance.sinMeta ? ` · ${fmt(balance.sinMeta)} sin meta` : ""}; se muestran por separado</span>` }),
+        foot: `<span class="muted">+${fmt(balance.excedente)} excedentes${balance.sinMeta ? ` · ${fmt(balance.sinMeta)} sin meta` : ""}</span>` }),
     ].join("");
     const selector = `<div class="selectrow service-select"><label for="svc-tarea-pick">Tipo de servicio</label><select class="pick" id="svc-tarea-pick">
       <option value="">Todos los tipos</option>${disponibles.map((r) => `<option value="${esc(r.Dim)}" ${r.Dim === svcTareaFiltro ? "selected" : ""}>${esc(r.Dim)}</option>`).join("")}</select>
-      <span class="muted">Aplica a todos los indicadores, gráficos y a la exportación de esta sección.</span></div>`;
+      </div>`;
     lastExport = {
       filename: "avance_servicios.csv",
       columns: ["Tipo de servicio", "Meta", "Ejecutado", "Avance por volumen %", "Peso de meta %", "Meta cubierta", "Pendiente", "Sobre meta", "Ejecución sin meta"],
@@ -712,10 +711,15 @@
     };
     return `${sectionHead("Avance de servicios", svcTareaFiltro || "Todos los tipos de servicio")}
       ${selector}<section class="grid grid-kpi">${kpis}</section>
-      ${panel("Cobertura de metas por tipo de servicio", "Cada barra representa el 100% de su propia meta. El excedente aparece separado y no completa la meta de otro tipo.", serviceCoverage(porServ, balance.meta))}
-      <details class="service-method"><summary>Cómo se calcula el ponderado</summary><p>El peso de cada tipo es su meta dividida entre la meta total. La cobertura ponderada suma esos pesos multiplicados por el avance de cada tipo, limitado al 100%. Equivale a sumar lo ejecutado hasta la meta de cada tipo y dividir entre la meta total.</p><p>El avance por volumen conserva los excedentes: con metas de 100 y 100, ejecutar 150 y 50 produce 100% de avance y 75% de cobertura. Sin limitar los avances, ponderar por la meta da el mismo resultado que dividir los totales, cuando todos los tipos ejecutados tienen meta.</p><p>La ejecución sin meta se incluye en el volumen, pero no en la cobertura. Son indicadores de seguimiento; la compensación entre tipos no implica cumplimiento oficial de todas las metas.</p></details>
-      <details class="service-method" ${svcTareaFiltro ? "open" : ""}><summary>Ver detalle por tarea · ${percent(tareasBalance.cobertura)}${tareasBalance.cobertura == null ? " (sin meta)" : "% de cobertura"}</summary>${panel("Detalle por tarea", `Cobertura dentro de las tareas: ${percent(tareasBalance.cobertura)}${tareasBalance.cobertura == null ? " (sin meta)" : "%"}. Aquí el límite del 100% se aplica a cada tarea; puede ser menor que la cobertura por tipo de servicio.`, serviceCoverage(porTarea, tareasBalance.meta))}</details>
-      <details class="service-method"><summary>Ver distribución por complejidad</summary>${panel("Servicios por complejidad", "Comparación de cantidades programadas y ejecutadas", CH.barsMetaEjec(porComp, { gutter: 90 }), legendMetaEjec)}</details>`;
+      <section class="services-visual-grid">
+        ${panel("Avance por servicio", "Ejecutado / meta · + excedente", serviceCoverage(porServ, balance.meta))}
+        <aside class="services-complexity">
+          ${panel("Por complejidad", "Cantidad de servicios", CH.barsMetaEjec(porComp, { gutter: 65 }), legendMetaEjec)}
+          ${panel("Composición de la ejecución", "Por complejidad", CH.donut(porComp.map((r, i) => ({ label: r.Dim, value: r.Ejecutado, color: [COL.purple, COL.blue, COL.soft][i % 3] })), fmt(balance.ejecutado), "servicios") + CH.legendList(porComp.map((r, i) => ({ label: r.Dim, value: r.Ejecutado, color: [COL.purple, COL.blue, COL.soft][i % 3] }))))}
+        </aside>
+      </section>
+      <details class="service-method" ${svcTareaFiltro ? "open" : ""}><summary>Por tarea · ${percent(tareasBalance.cobertura)}${tareasBalance.cobertura == null ? " (sin meta)" : "% de cobertura"}</summary><div class="service-task-chart">${serviceCoverage(porTarea, tareasBalance.meta)}</div></details>
+      <details class="service-method"><summary>Cómo se calcula</summary><p>Volumen: ejecutado ÷ meta. Ponderado: peso según la meta y aporte máximo de 100% por tipo. Por tarea se aplica el mismo límite a cada tarea.</p></details>`;
   }
 
   function afterServicios() {
@@ -1381,7 +1385,7 @@
       context.className = "scope-note";
       context.setAttribute("role", "status");
       context.textContent = `${FILTER.programas.length ? FILTER.programas.join(", ") : "Todos los programas"} · ${FILTER.meses.length ? FILTER.meses.map((m) => CFG.MESES_ES[m]).join(", ") : "Todos los meses de 2026"} · ${FILTER.especialistas.length ? FILTER.especialistas.join(", ") : "Todo el equipo"}. Clientes únicos por RUC; las metas de clientes se suman por mes y programa. ${FILTER.especialistas.length ? "Las metas institucionales de clientes no se comparan con un especialista." : "Los porcentajes comparan con la meta del período seleccionado."}`;
-      if (VIEW === "servicios") context.textContent = `${FILTER.programas.length ? FILTER.programas.join(", ") : "Todos los programas"} · ${FILTER.meses.length ? FILTER.meses.map((m) => CFG.MESES_ES[m]).join(", ") : "Todos los meses de 2026"} · ${FILTER.especialistas.length ? FILTER.especialistas.join(", ") : "Todo el equipo"}. Los avances se comparan con la meta del período seleccionado.`;
+      if (VIEW === "servicios") context.textContent = `${FILTER.programas.length ? FILTER.programas.join(", ") : "Todos los programas"} · ${FILTER.meses.length ? FILTER.meses.map((m) => CFG.MESES_ES[m]).join(", ") : "Todos los meses de 2026"} · ${FILTER.especialistas.length ? FILTER.especialistas.join(", ") : "Todo el equipo"}.`;
       host.prepend(context);
     }
     window.scrollTo({ top: 0, behavior: "instant" in window ? "instant" : "auto" });
