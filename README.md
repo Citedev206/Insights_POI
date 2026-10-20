@@ -262,3 +262,9 @@ tipografía IBM Plex y semáforo verde/ámbar/rojo. La guía de diseño es
 Validación local de cálculos y generación de vistas con los Excel actuales: `node tests/dashboard.test.cjs`.
 
 En Especialistas → CdD-FEST, las UP únicas atendidas y la suma de metas por actividad se muestran en columnas separadas, sin barra ni porcentaje: una UP puede estar prevista para varias actividades y esas unidades no son directamente comparables.
+
+### Servicios: volumen y cobertura ponderada
+
+La sección separa el avance por volumen (`Σ ejecutado / Σ meta`) de la cobertura ponderada por tipo (`Σ min(ejecutado_tipo, meta_tipo) / Σ meta_tipo`). Cada tipo pesa según su meta; el aporte de cada tipo se limita al 100%. Así, los excedentes siguen visibles, pero no ocultan metas pendientes de otros tipos. La ejecución sin meta se informa aparte y solo se incluye en el volumen.
+
+El selector de tipo aplica a toda la sección y a su CSV. El detalle por tarea recalcula la cobertura limitando cada tarea; por eso puede ser menor que la cobertura agrupada por tipo. La cantidad de servicios usa CANTIDAD, y el número de filas se identifica como registros. Se reemplazan los gráficos repetidos por barras de cobertura con cantidades, peso, pendiente y excedente. La complejidad queda en un panel desplegable.

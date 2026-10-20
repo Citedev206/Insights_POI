@@ -85,6 +85,21 @@
     return out;
   }
 
+  // Peso = meta del tipo / meta total. Se limita cada tipo al 100 %
+  // antes de ponderar, para separar cobertura de compensación por volumen.
+  function balanceServicios(rows) {
+    const meta = rows.reduce((n, r) => n + Math.max(0, Number(r.Meta) || 0), 0);
+    const ejecutado = rows.reduce((n, r) => n + Math.max(0, Number(r.Ejecutado) || 0), 0);
+    const cubierto = rows.reduce((n, r) => n + Math.min(Math.max(0, Number(r.Meta) || 0), Math.max(0, Number(r.Ejecutado) || 0)), 0);
+    const sinMeta = rows.filter((r) => !(r.Meta > 0)).reduce((n, r) => n + Math.max(0, Number(r.Ejecutado) || 0), 0);
+    return {
+      meta, ejecutado, cubierto, pendiente: meta - cubierto,
+      excedente: ejecutado - cubierto - sinMeta, sinMeta,
+      avance: meta > 0 ? pct(meta, ejecutado) : null,
+      cobertura: meta > 0 ? pct(meta, cubierto) : null,
+    };
+  }
+
   function tendenciaMensual(eje, met) {
     const df = metaVsEjec(eje, met, X.MES, M.MES, Array.from({ length: 12 }, (_, i) => i + 1));
     return df.filter((r) => r.Dim >= 1 && r.Dim <= 12)
@@ -691,7 +706,7 @@
   }
 
   global.POI.metrics = {
-    pct, kpis, metaVsEjec, tendenciaMensual, rankingEspecialistas,
+    pct, kpis, metaVsEjec, balanceServicios, tendenciaMensual, rankingEspecialistas,
     complejidadResumen, heatmapCumplimiento, clientesResumen,
     clientesNuevosPorMes, kpisClientes, clientesMetaPorMes,
     clientesMetaEspecialistas, cddFestMetaEspecialistas, cddFestMetaPorEspecialista,

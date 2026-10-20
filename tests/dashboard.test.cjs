@@ -16,7 +16,7 @@ ctx.window = ctx;
 vm.createContext(ctx);
 for (const name of ['data', 'metrics', 'charts']) vm.runInContext(fs.readFileSync(path.join(root, `js/${name}.js`), 'utf8'), ctx);
 // Expose renderers only inside this test context; production API stays unchanged.
-vm.runInContext(fs.readFileSync(path.join(root, 'js/app.js'), 'utf8').replace('  // ---- ARRANQUE', '  // ---- ARRANQUE').replace('  window.addEventListener("hashchange"', '  global.testDashboard = { setStore(v) { STORE = v; }, FILTER, VIEWS, metasClientesComparables };\n  window.addEventListener("hashchange"'), ctx);
+vm.runInContext(fs.readFileSync(path.join(root, 'js/app.js'), 'utf8').replace('  // ---- ARRANQUE', '  // ---- ARRANQUE').replace('  window.addEventListener("hashchange"', '  global.testDashboard = { setStore(v) { STORE = v; }, FILTER, VIEWS, metasClientesComparables, selectService(v) { svcTareaFiltro = v; } };\n  window.addEventListener("hashchange"'), ctx);
 (async () => {
   const data = await ctx.POI.data.loadAll();
   const { metrics: m, data: d } = ctx.POI;
@@ -32,6 +32,32 @@ vm.runInContext(fs.readFileSync(path.join(root, 'js/app.js'), 'utf8').replace(' 
   assert.equal(m.clientesResumen(data.ejecucion, []).nuevos, 0, 'Sin histórico no se inventan nuevos');
   const allocation = m.clientesMetaEspecialistas([], new Set(['A', 'B', 'C']), 5, 7);
   assert.ok(Math.abs(allocation.rows.reduce((n,r) => n+r.metaFoc,0)-5) < 1e-9, 'Reparto conserva la meta');
+  const compensated = m.balanceServicios([{Meta:100, Ejecutado:150}, {Meta:100, Ejecutado:50}]);
+  assert.equal(compensated.avance, 100);
+  assert.equal(compensated.cobertura, 75);
+  assert.equal(compensated.pendiente, 50);
+  assert.equal(compensated.excedente, 50);
+  const unequal = m.balanceServicios([{Meta:900, Ejecutado:900}, {Meta:100, Ejecutado:0}]);
+  assert.equal(unequal.cobertura, 90, 'Peso por meta, no promedio simple de 50%');
+  const noTarget = m.balanceServicios([{Meta:0, Ejecutado:20}]);
+  assert.equal(noTarget.cobertura, null);
+  assert.equal(noTarget.avance, null);
+  assert.equal(noTarget.sinMeta, 20);
+  assert.equal(noTarget.excedente, 0);
+  const mixed = m.balanceServicios([{Meta:100, Ejecutado:50}, {Meta:0, Ejecutado:100}]);
+  assert.equal(mixed.avance, 150);
+  assert.equal(mixed.cobertura, 50);
+  assert.equal(m.balanceServicios([{Meta:100, Ejecutado:0}]).cobertura, 0);
+  const serviceTypes = [...new Set(data.ejecucion.map(r => m.normKey(r.TIPO_SERVICIO)))];
+  for (const service of serviceTypes) {
+    app.selectService(service);
+    const html = app.VIEWS.servicios.render();
+    const records = data.ejecucion.filter(r => m.normKey(r.TIPO_SERVICIO) === service);
+    const total = records.reduce((n,r) => n+r.CANTIDAD,0);
+    assert.ok(html.includes(`${ctx.POI.charts.fmt(total)}</div>`), 'KPI usa cantidades del servicio seleccionado');
+    assert.ok(html.includes('selected>'+ctx.POI.charts.esc(service)), 'Selector conserva su valor');
+  }
+  app.selectService(null);
   const programs = [...new Set(data.ejecucion.map(r => r.PROGRAMA))];
   let renders = 0;
   for (const program of [null, ...programs]) {
@@ -51,5 +77,5 @@ vm.runInContext(fs.readFileSync(path.join(root, 'js/app.js'), 'utf8').replace(' 
   assert.equal(app.metasClientesComparables(data.ejecucion).length, 0, 'Sin comparación institucional para especialista');
   filter.especialistas = [];
   const totals = m.kpis(data.ejecucion, data.metas);
-  console.log(JSON.stringify({ renders, clients: expectedClients, services: totals.ejecutado, target: totals.meta, compliance: totals.cumplimiento, programs }));
+  console.log(JSON.stringify({ renders, clients: expectedClients, services: totals.ejecutado, target: totals.meta, compliance: totals.cumplimiento, programs, serviceBalance: m.balanceServicios(m.metaVsEjec(data.ejecucion, data.metas, "TIPO_SERVICIO", "TIPO_SERVICIO")) }));
 })().catch(e => { console.error(e); process.exitCode = 1; });
