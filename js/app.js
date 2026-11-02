@@ -20,7 +20,10 @@
   let wvEspSel = null;             // especialista seleccionado en World Vision
   let calMode = "resumen";         // modo del calendario: "empresa" | "intervencion"
   let cddSel = null;               // Unidad Productiva seleccionada en CdD-FEST
-  let cddMode = "up";              // modo CdD-FEST: "up" (por unidad) | "general" (todas)
+  let cddMode = "up";              // modo CdD-FEST: "up" (por unidad) | "general" (todas) | "comparar"
+  let cddCmpA = "3.1";             // comparación de actividades: código A
+  let cddCmpB = "3.2";             // comparación de actividades: código B
+  let cddCmpFiltro = "todas";      // todas | ambas | soloA | soloB | ninguna
   let cddDrillGrupo = null;        // componente (1-5) elegido en la Vista general para ver su detalle
   let cddDrillActividad = null;    // código de actividad (p. ej. "3.4") elegido dentro del detalle del componente
   let svcComplejidadFiltro = null;
@@ -935,9 +938,151 @@
     const tabs = `<div class="segmented" id="cdd-tabs">
       <button class="seg ${cddMode === "up" ? "active" : ""}" data-mode="up">Por Unidad Productiva</button>
       <button class="seg ${cddMode === "general" ? "active" : ""}" data-mode="general">Vista general</button>
+      <button class="seg ${cddMode === "comparar" ? "active" : ""}" data-mode="comparar">Comparar actividades</button>
     </div>`;
-    const body = cddMode === "general" ? viewCddFestGeneral() : viewCddFestUP();
+    const body = cddMode === "general" ? viewCddFestGeneral()
+      : cddMode === "comparar" ? viewCddFestComparar() : viewCddFestUP();
     return `${tabs}${body}`;
+  }
+
+  // ---- CdD-FEST · Comparar actividades (p. ej. 3.1 vs 3.2) -----------------
+  function cddCmpData() {
+    const unidades = MT.cddFestUnidades(STORE.ejecucion, STORE.programado, STORE.resultsIce);
+    const codes = Object.keys(CFG.ACTIVIDADES).sort();
+    if (!codes.includes(cddCmpA)) cddCmpA = codes[0];
+    if (!codes.includes(cddCmpB)) cddCmpB = codes[Math.min(1, codes.length - 1)];
+    return { unidades, codes, cmp: MT.cddFestComparar(unidades, cddCmpA, cddCmpB) };
+  }
+  function cmpEstadoTxt(i) {
+    return i.estado === "ejecutada" ? "Ejecutada" : i.estado === "programada" ? "Programada" : "No";
+  }
+  function cmpEstadoBadge(i) {
+    if (i.estado === "ejecutada") return `<span class="badge green"><i></i>Ejecutada${i.fecha ? " · " + i.fecha.toLocaleDateString("es-PE") : ""}</span>`;
+    if (i.estado === "programada") return `<span class="badge amber"><i></i>Programada</span>`;
+    return `<span class="badge neutral"><i></i>No</span>`;
+  }
+  function cmpCategoriaTxt(cat) {
+    return cat === "ambas" ? `En ambas (${cddCmpA} y ${cddCmpB})`
+      : cat === "soloA" ? `Solo en ${cddCmpA}`
+        : cat === "soloB" ? `Solo en ${cddCmpB}` : "En ninguna";
+  }
+
+  function viewCddFestComparar() {
+    const { unidades, codes, cmp } = cddCmpData();
+    if (!unidades.length)
+      return noData("Aún no hay Unidades Productivas atendidas por CdD-FEST (ninguna con el componente 1.1 · Índice de Competitividad ejecutado).");
+    const optHtml = (sel) => codes.map((c) => {
+      const a = CFG.ACTIVIDADES[c];
+      return `<option value="${esc(c)}" ${c === sel ? "selected" : ""}>${esc(c)} · ${esc(a.nombre)} — ${esc(a.especialista)}</option>`;
+    }).join("");
+    const espList = MT.cddFestListaEspecialistas(unidades);
+    const pct = (n) => (cmp.total ? Math.round((n / cmp.total) * 100) : 0);
+    const c = cmp.conteos;
+
+    lastExport = {
+      filename: `cddfest_comparacion_${cddCmpA}_vs_${cddCmpB}.csv`,
+      columns: ["RUC", "Unidad productiva", `Actividad ${cddCmpA}`, `Actividad ${cddCmpB}`, "Resultado"],
+      rows: cmp.filas.map((r) => [r.ruc, r.razon, cmpEstadoTxt(r.a), cmpEstadoTxt(r.b), cmpCategoriaTxt(r.categoria)]),
+    };
+
+    const kpis = [
+      kpiCard({ name: `En ambas (${cddCmpA} y ${cddCmpB})`, icon: I.check, tone: "green", value: fmt(c.ambas),
+        foot: `<span class="muted">${pct(c.ambas)}% de ${fmt(cmp.total)} UP</span>` }),
+      kpiCard({ name: `Solo en ${cddCmpA}`, icon: I.layers, tone: "purple", value: fmt(c.soloA),
+        foot: `<span class="muted">${esc(CFG.ACTIVIDADES[cddCmpA].especialista)}</span>` }),
+      kpiCard({ name: `Solo en ${cddCmpB}`, icon: I.layers, tone: "blue", value: fmt(c.soloB),
+        foot: `<span class="muted">${esc(CFG.ACTIVIDADES[cddCmpB].especialista)}</span>` }),
+      kpiCard({ name: "En ninguna", icon: I.alert, tone: "amber", value: fmt(c.ninguna),
+        foot: `<span class="muted">sin ${esc(cddCmpA)} ni ${esc(cddCmpB)} ejecutadas</span>` }),
+    ].join("");
+
+    const chips = [["todas", "Todas", cmp.total], ["ambas", "En ambas", c.ambas],
+      ["soloA", `Solo ${cddCmpA}`, c.soloA], ["soloB", `Solo ${cddCmpB}`, c.soloB], ["ninguna", "En ninguna", c.ninguna]]
+      .map(([k, label, n]) => `<button type="button" class="chip cdd-cmp-chip${cddCmpFiltro === k ? " active" : ""}" data-filtro="${k}">${esc(label)}<span class="chip-count">${fmt(n)}</span></button>`).join("");
+
+    return `
+      ${sectionHead("CdD-FEST · Comparar actividades", "Qué unidades productivas recibieron cada actividad (solo cuenta lo ejecutado)")}
+      <div class="selectrow"><label>Actividad A</label>
+        <select class="pick" id="cmp-a">${optHtml(cddCmpA)}</select>
+        <label>Actividad B</label>
+        <select class="pick" id="cmp-b">${optHtml(cddCmpB)}</select></div>
+      <section class="grid grid-kpi">${kpis}</section>
+      ${panel("Unidades productivas", "Clic en un filtro para ver solo ese grupo · el Excel incluye todos los grupos en hojas separadas",
+        `<div class="chipbar" id="cmp-chips">${chips}</div><div id="tbl-cdd-cmp" style="margin-top:14px"></div>`)}
+      ${panel("Exportar a Excel", "Descarga un archivo .xlsx con los datos de CdD-FEST",
+        `<div class="selectrow">
+          <button type="button" class="btn btn-primary" id="cmp-xlsx">Excel de la comparación ${esc(cddCmpA)} vs ${esc(cddCmpB)}</button>
+        </div>
+        <div class="selectrow" style="margin-top:12px"><label>Especialista</label>
+          <select class="pick" id="cmp-esp">
+            <option value="">Todos los especialistas</option>
+            ${espList.map((e) => `<option value="${esc(e.key)}">${esc(e.nombre)}</option>`).join("")}
+          </select>
+          <button type="button" class="btn btn-primary" id="cmp-esp-xlsx">Excel del especialista</button></div>`)}`;
+  }
+
+  function afterCddFestComparar() {
+    const { unidades, cmp } = cddCmpData();
+    if (!unidades.length) return;
+    const on = (id, fn) => { const el = document.getElementById(id); if (el) el.addEventListener("change", fn); };
+    on("cmp-a", (e) => { cddCmpA = e.target.value; renderView(); });
+    on("cmp-b", (e) => { cddCmpB = e.target.value; renderView(); });
+    document.querySelectorAll(".cdd-cmp-chip").forEach((ch) =>
+      ch.addEventListener("click", () => { cddCmpFiltro = ch.dataset.filtro; renderView(); }));
+
+    const filas = cddCmpFiltro === "todas" ? cmp.filas : cmp.filas.filter((r) => r.categoria === cddCmpFiltro);
+    const tbl = document.getElementById("tbl-cdd-cmp");
+    if (tbl) {
+      mountTable(tbl, {
+        title: cddCmpFiltro === "todas" ? "Todas las UP" : cmpCategoriaTxt(cddCmpFiltro),
+        sub: `${filas.length} UP · ${cddCmpA} (${CFG.ACTIVIDADES[cddCmpA].especialista}) vs ${cddCmpB} (${CFG.ACTIVIDADES[cddCmpB].especialista})`,
+        searchPlaceholder: "Buscar por RUC o razón social…", searchKeys: ["ruc", "razon"],
+        rows: filas, pageSize: 12, totalLabel: " UP",
+        columns: [
+          { label: "Unidad productiva", cls: "name", render: (r) => esc(r.razon) },
+          { label: "RUC", render: (r) => esc(r.ruc) },
+          { label: `Actividad ${cddCmpA}`, render: (r) => cmpEstadoBadge(r.a) },
+          { label: `Actividad ${cddCmpB}`, render: (r) => cmpEstadoBadge(r.b) },
+          { label: "Resultado", cls: "ctr", render: (r) => esc(cmpCategoriaTxt(r.categoria)) },
+        ],
+      });
+    }
+
+    const btnCmp = document.getElementById("cmp-xlsx");
+    if (btnCmp) btnCmp.addEventListener("click", () => {
+      const head = ["RUC", "Unidad productiva", `${cddCmpA} estado`, `${cddCmpA} fecha`, `${cddCmpB} estado`, `${cddCmpB} fecha`, "Resultado"];
+      const fechaTxt = (i) => (i.fecha ? i.fecha.toLocaleDateString("es-PE") : "");
+      const toRows = (list) => [head].concat(list.map((r) => [r.ruc, r.razon, cmpEstadoTxt(r.a), fechaTxt(r.a), cmpEstadoTxt(r.b), fechaTxt(r.b), cmpCategoriaTxt(r.categoria)]));
+      const c = cmp.conteos;
+      exportXLSX(`cddfest_comparacion_${cddCmpA}_vs_${cddCmpB}.xlsx`, [
+        { name: "Resumen", rows: [["Concepto", "UP"],
+          [`Actividad A: ${cddCmpA} · ${CFG.ACTIVIDADES[cddCmpA].nombre} (${CFG.ACTIVIDADES[cddCmpA].especialista})`, ""],
+          [`Actividad B: ${cddCmpB} · ${CFG.ACTIVIDADES[cddCmpB].nombre} (${CFG.ACTIVIDADES[cddCmpB].especialista})`, ""],
+          ["Total UP", cmp.total], [`En ambas (${cddCmpA} y ${cddCmpB})`, c.ambas],
+          [`Solo en ${cddCmpA}`, c.soloA], [`Solo en ${cddCmpB}`, c.soloB], ["En ninguna", c.ninguna]] },
+        { name: "Todas", rows: toRows(cmp.filas) },
+        { name: "En ambas", rows: toRows(cmp.filas.filter((r) => r.categoria === "ambas")) },
+        { name: `Solo ${cddCmpA}`, rows: toRows(cmp.filas.filter((r) => r.categoria === "soloA")) },
+        { name: `Solo ${cddCmpB}`, rows: toRows(cmp.filas.filter((r) => r.categoria === "soloB")) },
+        { name: "En ninguna", rows: toRows(cmp.filas.filter((r) => r.categoria === "ninguna")) },
+      ]);
+    });
+
+    const btnEsp = document.getElementById("cmp-esp-xlsx");
+    if (btnEsp) btnEsp.addEventListener("click", () => {
+      const sel = document.getElementById("cmp-esp");
+      const key = sel ? sel.value : "";
+      const nombre = key ? sel.options[sel.selectedIndex].text : "Todos";
+      const data = MT.cddFestFilasEspecialista(unidades, key || null);
+      if (!data.filas.length) { alert(`${nombre} no tiene UP registradas en CdD-FEST.`); return; }
+      const slug = nombre.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");
+      exportXLSX(`cddfest_${slug || "especialista"}.xlsx`, [
+        { name: "UP atendidas", rows: [["RUC", "Unidad productiva", "Actividad", "Nombre de la actividad", "Especialista", "Estado", "Fecha", "Servicios ejecutados"]]
+          .concat(data.filas.map((f) => [f.ruc, f.razon, f.codigo, f.actividad, f.especialista, f.estado, f.fecha ? f.fecha.toLocaleDateString("es-PE") : "", f.cantServicios])) },
+        { name: "Resumen por actividad", rows: [["Actividad", "Nombre", "UP ejecutadas", "UP solo programadas", "Meta institucional"]]
+          .concat(data.resumen.map((r) => [r.codigo, r.actividad, r.ejecutadas, r.programadas, r.meta == null ? "" : r.meta])) },
+      ]);
+    });
   }
 
   function viewCddFestUP() {
@@ -1302,6 +1447,7 @@
     if (tabs) tabs.querySelectorAll(".seg").forEach((b) =>
       b.addEventListener("click", () => { if (cddMode !== b.dataset.mode) { cddMode = b.dataset.mode; cddDrillGrupo = null; cddDrillActividad = null; renderView(); } }));
     if (cddMode === "general") { afterCddFestGeneral(); return; }
+    if (cddMode === "comparar") { afterCddFestComparar(); return; }
     afterCddFestUP();
   }
 
@@ -1495,6 +1641,31 @@
   function stampData() {
     const el = document.getElementById("data-stamp");
     if (el && META.updated) el.textContent = `Archivo actualizado: ${META.updated}`;
+  }
+
+  // ---- Exportar a Excel (.xlsx) con SheetJS ----------------------------------
+  // sheets: [{ name, rows: [[encabezados], [fila], ...] }]
+  function exportXLSX(filename, sheets) {
+    if (!global.XLSX) { alert("La librería de Excel no está disponible."); return; }
+    const wb = global.XLSX.utils.book_new();
+    const usados = new Set();
+    sheets.forEach((s) => {
+      const ws = global.XLSX.utils.aoa_to_sheet(s.rows);
+      ws["!cols"] = s.rows[0].map((_, i) => ({
+        wch: Math.min(60, Math.max(10, ...s.rows.map((r) => String(r[i] == null ? "" : r[i]).length)) + 2),
+      }));
+      let name = String(s.name).replace(/[\\/?*[\]:]/g, "-").slice(0, 31), n = 2;
+      while (usados.has(name)) name = name.slice(0, 28) + "_" + n++;
+      usados.add(name);
+      global.XLSX.utils.book_append_sheet(wb, ws, name);
+    });
+    const out = global.XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const blob = new Blob([out], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
   // ---- Exportar CSV de la vista activa -------------------------------------

@@ -692,6 +692,91 @@
     return { filas, porActividad };
   }
 
+  // Código decimal exacto de un evento ("3.1"), o null si no tiene.
+  const codigoDeEvento = (e) => (e.componenteCodigo != null && !isNaN(Number(e.componenteCodigo))
+    ? Number(e.componenteCodigo).toFixed(1) : null);
+
+  // Comparación de dos actividades (códigos "3.1" vs "3.2"): para cada UP,
+  // si recibió cada una (ejecutada / solo programada / no). La categoría
+  // solo mira lo EJECUTADO: ambas · solo A · solo B · ninguna.
+  function cddFestComparar(unidades, codA, codB) {
+    const info = (u, code) => {
+      const evs = u.eventos.filter((e) => codigoDeEvento(e) === code);
+      const ej = evs.filter((e) => e.ejecutado);
+      const fechas = ej.map((e) => e.fecha).filter(Boolean);
+      return {
+        estado: ej.length ? "ejecutada" : (evs.length ? "programada" : "no"),
+        fecha: fechas.length ? new Date(Math.max(...fechas.map((d) => d.getTime()))) : null,
+        cantServicios: ej.length,
+        especialista: Array.from(new Set(evs.map((e) => normKey(e.especialista)).filter(Boolean))).join(", ") || null,
+      };
+    };
+    const orden = { ambas: 0, soloA: 1, soloB: 2, ninguna: 3 };
+    const filas = (unidades || []).map((u) => {
+      const a = info(u, codA), b = info(u, codB);
+      const ea = a.estado === "ejecutada", eb = b.estado === "ejecutada";
+      const categoria = ea && eb ? "ambas" : ea ? "soloA" : eb ? "soloB" : "ninguna";
+      return { ruc: u.ruc, razon: u.razon || u.ruc, a, b, categoria };
+    }).sort((x, y) => orden[x.categoria] - orden[y.categoria] ||
+      String(x.razon).localeCompare(String(y.razon), "es"));
+    const conteos = { ambas: 0, soloA: 0, soloB: 0, ninguna: 0 };
+    filas.forEach((f) => { conteos[f.categoria]++; });
+    return { filas, conteos, total: filas.length };
+  }
+
+  // Especialistas de CdD-FEST (catálogo + los que aparecen en eventos),
+  // sin duplicar variaciones de captura de un mismo nombre.
+  function cddFestListaEspecialistas(unidades) {
+    const display = new Map();
+    Object.keys(CFG.ACTIVIDADES || {}).forEach((c) => {
+      const esp = CFG.ACTIVIDADES[c].especialista;
+      if (esp) display.set(normEspKey(esp), esp);
+    });
+    (unidades || []).forEach((u) => u.eventos.forEach((e) => {
+      if (!e.especialista) return;
+      const k = normEspKey(e.especialista);
+      if (!display.has(k)) display.set(k, normKey(String(e.especialista)));
+    }));
+    return Array.from(display.entries()).map(([key, nombre]) => ({ key, nombre }))
+      .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  }
+
+  // UP atendidas por un especialista (espKey = normEspKey, o null = todos):
+  // una fila por UP+actividad, más un resumen por actividad. Pensado para
+  // exportar a Excel.
+  function cddFestFilasEspecialista(unidades, espKey) {
+    const grupos = new Map();
+    (unidades || []).forEach((u) => u.eventos.forEach((e) => {
+      if (espKey && (!e.especialista || normEspKey(e.especialista) !== espKey)) return;
+      const codigo = codigoDeEvento(e) || "—";
+      const key = u.ruc + "|" + codigo;
+      if (!grupos.has(key)) grupos.set(key, { ruc: u.ruc, razon: u.razon || u.ruc, codigo, eventos: [] });
+      grupos.get(key).eventos.push(e);
+    }));
+    const filas = Array.from(grupos.values()).map((g) => {
+      const ej = g.eventos.filter((e) => e.ejecutado);
+      const fechas = (ej.length ? ej : g.eventos).map((e) => e.fecha).filter(Boolean);
+      const act = CFG.ACTIVIDADES[g.codigo] || {};
+      return {
+        ruc: g.ruc, razon: g.razon, codigo: g.codigo, actividad: act.nombre || "",
+        especialista: Array.from(new Set(g.eventos.map((e) => normKey(e.especialista)).filter(Boolean))).join(", "),
+        estado: ej.length ? "Ejecutada" : "Programada",
+        fecha: fechas.length ? new Date(Math.max(...fechas.map((d) => d.getTime()))) : null,
+        cantServicios: ej.length,
+      };
+    }).sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)) ||
+      String(a.razon).localeCompare(String(b.razon), "es"));
+    const porCodigo = new Map();
+    filas.forEach((f) => {
+      if (!porCodigo.has(f.codigo)) porCodigo.set(f.codigo, { codigo: f.codigo, actividad: f.actividad, ejecutadas: 0, programadas: 0 });
+      porCodigo.get(f.codigo)[f.estado === "Ejecutada" ? "ejecutadas" : "programadas"]++;
+    });
+    const resumen = Array.from(porCodigo.values()).map((r) => Object.assign(r, {
+      meta: (CFG.ACTIVIDADES[r.codigo] || {}).meta != null ? CFG.ACTIVIDADES[r.codigo].meta : null,
+    }));
+    return { filas, resumen };
+  }
+
   // Regla informativa de duración esperada por tipo de actividad (no
   // reprograma fechas, solo etiqueta): asistencia técnica ≥ 7h, diseño 3-4h.
   const RE_MARCAS_COMBINANTES = new RegExp("[\\u0300-\\u036f]", "g");
@@ -712,6 +797,7 @@
     clientesMetaEspecialistas, cddFestMetaEspecialistas, cddFestMetaPorEspecialista,
     componenteGrupo, iceBrechas, ordenRecomendado, cddFestUnidades,
     cddFestResumenComponentes, cddFestDetalleComponente, reglaDuracion,
+    cddFestComparar, cddFestListaEspecialistas, cddFestFilasEspecialista, normEspKey,
     metaMinimaComponente,
     sumBy, uniqueCountBy, nunique, sumCol, normKey,
   };
